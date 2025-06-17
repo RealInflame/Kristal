@@ -1,4 +1,4 @@
-local SnowGraveSnowflake, super = Class(Object)
+ local SnowGraveSnowflake, super = Class(Object)
 
 function SnowGraveSnowflake:init(x, y)
     super:init(self, x, y)
@@ -26,6 +26,8 @@ function SnowGraveSnowflake:draw()
     love.graphics.draw(self.snowflake, 0, 0, 0, (math.sin(self.siner) * 2), 2, self.snowflake:getWidth() / 2, self.snowflake:getHeight() / 2)
     love.graphics.draw(self.snowflake,  (math.sin((self.siner / 3)) * 30), 0, 0, (math.sin((self.siner / 3)) * 2), 2, self.snowflake:getWidth() / 2, self.snowflake:getHeight() / 2)
     love.graphics.draw(self.snowflake, -(math.sin((self.siner / 3)) * 30), 0, 0, (math.sin((self.siner / 3)) * 2), 2, self.snowflake:getWidth() / 2, self.snowflake:getHeight() / 2)
+--  love.graphics.draw(drawable,        x,                                 y, r, sx,                               sy, ox, oy, kx, ky )
+
 end
 
 return SnowGraveSnowflake

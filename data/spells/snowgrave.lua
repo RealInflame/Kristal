@@ -14,10 +14,10 @@ function spell:init()
     self.description = "Deals the fatal damage to\nall of the enemies."
 
     -- TP cost
-    self.cost = 200
+    self.cost = 100
 
     -- Target mode (ally, party, enemy, enemies, or none)
-    self.target = "enemies"
+    self.target = "party"
 
     -- Tags that apply to this spell
     self.tags = {"ice", "fatal", "damage"}
@@ -28,15 +28,18 @@ function spell:getTPCost(chara)
     if chara and chara:checkWeapon("thornring") then
         cost = Utils.round(cost / 2)
     end
+    if chara and chara:checkWeapon("superthornring") then
+        cost = Utils.round(cost / 4)
+    end
     return cost
 end
 
 function spell:onCast(user, target)
-    local object = SnowGraveSpell(user)
-    object.damage = math.ceil(((user.chara:getStat("magic") * 40) + 600))
+    local object = SnowGraveSpell(user, target)
+    object.damage = (user.chara:getStat("magic") * 40) + 600 --math.ceil(((user.chara:getStat("magic") * 40) + 600))
     object.layer = BATTLE_LAYERS["above_ui"]
     Game.battle:addChild(object)
-
+    --target[1]:hurt(object.damage, user)
     return false
 end
 

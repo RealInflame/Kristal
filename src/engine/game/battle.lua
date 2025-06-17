@@ -327,7 +327,7 @@ function Battle:onStateChange(old,new)
         end
 
         if self.state_reason == "CANCEL" then
-            self.battle_ui.encounter_text:setText("[instant]" .. self.battle_ui.current_encounter_text)
+            self.battle_ui.encounter_text:setText("[instant]" .. self.battle_ui.current_encounter_text) --
         end
 
         local had_started = self.started

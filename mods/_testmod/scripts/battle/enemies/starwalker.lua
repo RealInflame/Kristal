@@ -10,8 +10,8 @@ function Starwalker:init()
     self.default = ""
     self.sprite:set("wings")
 
-    self.max_health = 2400
-    self.health = 2400
+    self.max_health = 1000
+    self.health = 1000
     self.attack = 8
     self.defense = 0
     self.money = 123456
@@ -38,8 +38,8 @@ function Starwalker:init()
     self.low_health_text = "* Star walker has      hurt"
 
     self:registerAct("Star walker", "")
-    self:registerAct("Red Buster", "Red\nDamage", "susie", 60)
-    self:registerAct("DualHeal", "Heals\neveryone", "ralsei", 50)
+    self:registerAct("Red Buster", "Red\nDamage", "kris", 60)
+    self:registerAct("DualHeal", "Heals\neveryone", "noelle", 50)
 
     self.text_override = nil
 end
@@ -61,9 +61,9 @@ end
 
 function Starwalker:onAct(battler, name)
     if name == "DualHeal" then
-        Game.battle:powerAct("dual_heal", battler, "ralsei")
+        Game.battle:powerAct("dual_heal", battler, "kris")
     elseif name == "Red Buster" then
-        Game.battle:powerAct("red_buster", battler, "susie", self)
+        Game.battle:powerAct("red_buster", battler, "noelle", self)
     elseif name == "Star walker" then
         self:addMercy(8)
         return "* The Original Starwalker  absorbs the\nACT"

@@ -534,6 +534,7 @@ function Game:initPartyMembers()
     for id,_ in pairs(Registry.party_members) do
         self.party_data[id] = Registry.createPartyMember(id)
     end
+    
 end
 
 function Game:getPartyMember(id)
@@ -551,6 +552,7 @@ function Game:addPartyMember(chara, index)
     else
         table.insert(self.party, chara)
     end
+    return chara
 end
 
 function Game:removePartyMember(chara)

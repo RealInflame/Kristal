@@ -1,15 +1,16 @@
 local SnowGraveSpell, super = Class(Object)
 
-function SnowGraveSpell:init(user)
+function SnowGraveSpell:init(user, targets)
     super:init(self, 0, 0)
 
     self.caster = user
+    self.targets = targets
 
     self.bgalpha = 0
     self.timer = 0
     self.snowspeed = 0
     self.stimer = 0
-    self.damage = 0
+    self.damage = 5000
     self.fncon = 0
     self.con = 0
     self.init = true
@@ -25,7 +26,7 @@ function SnowGraveSpell:init(user)
     self.bg_snowfall:setWrap('repeat','repeat')
     self.bg_snowfall_quad = love.graphics.newQuad( 0, 0, 640, 480, self.bg_snowfall:getWidth(), self.bg_snowfall:getHeight())
 
-    Assets.playSound("snowgrave", 0.5)
+    Assets.playSound("snowgrave", 1)
 
     self.hurt_enemies = false
 end
@@ -37,13 +38,13 @@ function SnowGraveSpell:update()
 
     if self.hurt_enemies then
         self.hurt_enemies = false
-        for i, enemy in ipairs(Game.battle.enemies) do
+        for i, enemy in ipairs(self.targets) do --ipairs(Game.battle.enemies) do
             if enemy then
-                enemy.hit_count = 0
-                enemy:hurt(self.damage + Utils.round(math.random(100)), self.caster, enemy.onDefeatFatal)
-                if enemy.health > 0 then
-                    enemy:flash()
-                end
+                --enemy.hit_count = 0
+                --enemy:hurt(self.damage + Utils.round(math.random(100)), self.caster, enemy.onDefeatFatal)
+                --if enemy.health > 0 then
+                    --enemy:flash()
+                --end
             end
         end
     end
@@ -104,11 +105,11 @@ function SnowGraveSpell:draw()
             self.since_last_snowflake = 1
         end
 
-        if self.since_last_snowflake > 1 then
+        if self.since_last_snowflake > 6 then
             self:createSnowflake(455, 560)
             self:createSnowflake(500, 600)
             self:createSnowflake(545, 520)
-            self.since_last_snowflake = self.since_last_snowflake - 1
+            self.since_last_snowflake = self.since_last_snowflake - 6
         end
 
         if (self.stimer >= 8) then

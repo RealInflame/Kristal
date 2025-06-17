@@ -4,7 +4,7 @@ function character:init()
     super:init(self)
 
     -- Display name
-    self.name = "Kris"
+    self.name = "Clover"
 
     -- Actor (handles overworld/battle sprites)
     self:setActor("kris")
@@ -26,31 +26,36 @@ function character:init()
 
     -- Whether the party member can act / use spells
     self.has_act = true
-    self.has_spells = false
+    self.has_spells = true
 
     -- Whether the party member can use their X-Action
     self.has_xact = true
     -- X-Action name (displayed in this character's spell menu)
-    self.xact_name = "K-Action"
+    self.xact_name = "C-Action"
+
+    -- Spells
+    --self:addSpell("red_buster")
+    self:addSpell("heal_prayer")
+    
 
     -- Current health (saved to the save file)
     if Game.chapter == 1 then
         self.health = 90
     else
-        self.health = 120
+        self.health = 12
     end
 
     -- Base stats (saved to the save file)
     if Game.chapter == 1 then
         self.stats = {
-            health = 90,
+            health = 12,
             attack = 10,
             defense = 2,
             magic = 0
         }
     else
         self.stats = {
-            health = 120,
+            health = 12,
             attack = 12,
             defense = 2,
             magic = 0
@@ -59,7 +64,7 @@ function character:init()
     -- Max stats from level-ups
     if Game.chapter == 1 then
         self.max_stats = {
-            health = 120
+            health = 12
         }
     else
         self.max_stats = {

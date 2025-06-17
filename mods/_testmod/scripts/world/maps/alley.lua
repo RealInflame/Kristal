@@ -1,7 +1,7 @@
 return {
   version = "1.9",
   luaversion = "5.1",
-  tiledversion = "1.9.1",
+  tiledversion = "1.9.2",
   class = "",
   orientation = "orthogonal",
   renderorder = "right-down",
@@ -10,7 +10,7 @@ return {
   tilewidth = 40,
   tileheight = 40,
   nextlayerid = 16,
-  nextobjectid = 96,
+  nextobjectid = 97,
   properties = {
     ["border"] = "castle",
     ["light"] = false,
@@ -342,8 +342,8 @@ return {
           name = "transition",
           class = "",
           shape = "rectangle",
-          x = 640,
-          y = 480,
+          x = 639.055,
+          y = 320.351,
           width = 80,
           height = 40,
           rotation = 0,
@@ -416,6 +416,22 @@ return {
           properties = {
             ["marker"] = "shop_exit",
             ["shop"] = "test"
+          }
+        },
+        {
+          id = 96,
+          name = "transition",
+          class = "",
+          shape = "rectangle",
+          x = 239.622,
+          y = 240.729,
+          width = 80,
+          height = 40,
+          rotation = 0,
+          visible = true,
+          properties = {
+            ["map"] = "test1",
+            ["marker"] = "spawn"
           }
         }
       }

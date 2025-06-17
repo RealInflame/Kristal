@@ -53,7 +53,7 @@ function love.load(args)
     Input.loadBinds()
 
     -- pixel scaling (the good one)
-    love.graphics.setDefaultFilter("nearest")
+    love.graphics.setDefaultFilter("nearest","nearest")
 
     -- set the window size
     local window_scale = Kristal.Config["windowScale"]

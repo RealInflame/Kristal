@@ -419,6 +419,7 @@ function DarkEquipMenu:drawItems()
             love.graphics.print(item:getName(), x + 20, y + (offset * 27) - 6)
         else
             love.graphics.setColor(0.25, 0.25, 0.25)
+            love.graphics.setFont(Assets.getFont("main"))
             love.graphics.print("---------", x + 20, y + (offset * 27) - 6)
         end
     end

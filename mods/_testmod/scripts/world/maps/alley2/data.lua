@@ -14,7 +14,7 @@ return {
   properties = {
     ["border"] = "city",
     ["light"] = false,
-    ["music"] = "dogcheck",
+    ["music"] = "cybercity_alt",
     ["name"] = "Test City - Banana Room"
   },
   tilesets = {

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.9" tiledversion="1.9.1" orientation="orthogonal" renderorder="right-down" width="16" height="12" tilewidth="40" tileheight="40" infinite="0" nextlayerid="6" nextobjectid="5">
+<map version="1.9" tiledversion="1.9.2" orientation="orthogonal" renderorder="right-down" width="16" height="12" tilewidth="40" tileheight="40" infinite="0" nextlayerid="6" nextobjectid="7">
  <layer id="1" name="Tile Layer 1" width="16" height="12">
   <data encoding="csv">
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
@@ -30,6 +30,9 @@
  <objectgroup color="#ff00ff" id="4" name="objects"/>
  <objectgroup color="#7f00ff" id="3" name="markers">
   <object id="3" name="spawn" x="320" y="400">
+   <point/>
+  </object>
+  <object id="6" name="entry_down" x="320.288" y="401.619">
    <point/>
   </object>
  </objectgroup>

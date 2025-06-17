@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.9" tiledversion="1.9.1" orientation="orthogonal" renderorder="right-down" width="21" height="12" tilewidth="40" tileheight="40" infinite="0" nextlayerid="16" nextobjectid="96">
+<map version="1.9" tiledversion="1.9.2" orientation="orthogonal" renderorder="right-down" width="21" height="12" tilewidth="40" tileheight="40" infinite="0" nextlayerid="16" nextobjectid="97">
  <editorsettings>
   <export target="alley.lua" format="lua"/>
  </editorsettings>
@@ -74,7 +74,7 @@
  </objectgroup>
  <objectgroup color="#ff00ff" id="2" name="objects">
   <object id="2" name="savepoint" x="360" y="185" width="40" height="40"/>
-  <object id="54" name="transition" x="640" y="480" width="80" height="40">
+  <object id="54" name="transition" x="639.055" y="320.351" width="80" height="40">
    <properties>
     <property name="map" value="alley2"/>
     <property name="marker" value="entry"/>
@@ -103,6 +103,12 @@
    <properties>
     <property name="marker" value="shop_exit"/>
     <property name="shop" value="test"/>
+   </properties>
+  </object>
+  <object id="96" name="transition" x="239.622" y="240.729" width="80" height="40">
+   <properties>
+    <property name="map" value="test1"/>
+    <property name="marker" value="spawn"/>
    </properties>
   </object>
  </objectgroup>

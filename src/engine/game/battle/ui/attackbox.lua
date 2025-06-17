@@ -52,7 +52,7 @@ function AttackBox:hit()
     if p == 0 then
         self.bolt:setColor(1, 1, 0)
         self.bolt.burst_speed = 0.2
-        return 150
+        return 450
     elseif p == 1 then
         return 120
     elseif p == 2 then

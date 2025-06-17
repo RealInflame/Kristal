@@ -21,7 +21,7 @@ function character:init()
     self.soul_color = {1, 0, 0}
 
     -- Whether the party member can act / use spells
-    self.has_act = false
+    self.has_act = true
     self.has_spells = true
 
     -- Whether the party member can use their X-Action
@@ -47,7 +47,7 @@ function character:init()
 
     -- Max stats from level-ups
     self.max_stats = {
-        health = 166
+        health = 999
     }
 
     -- Weapon icon in equip menu
@@ -107,7 +107,9 @@ function character:init()
 end
 
 function character:getTitle()
-    if self:checkWeapon("thornring") then
+    if self:checkWeapon("torturering") then
+        return "LV"..self.level.." Blizzard Bringer\nRecieves torture to\nbecome stronger."
+    elseif self:checkWeapon("thornring") then
         return "LV"..self.level.." Ice Trancer\nReceives pain to\nbecome stronger."
     elseif self:getFlag("iceshocks_used", 0) > 0 then
         return "LV"..self.level.." Frostmancer\nFreezes the enemy."

@@ -2,7 +2,7 @@ local Starwings, super = Class(Wave)
 
 function Starwings:init()
     super:init(self)
-    self.time = -1
+    self.time = 90
     self.starwalker = self:getAttackers()[1]
 end
 
@@ -36,6 +36,7 @@ end
 
 function Starwings:update()
     super:update(self)
+    self.time = self.time - 1
 end
 
 return Starwings

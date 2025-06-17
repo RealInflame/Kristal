@@ -17,7 +17,7 @@ function spell:init()
     self.cost = 50
 
     -- Target mode (ally, party, enemy, enemies, or none)
-    self.target = "enemy"
+    self.target = "ally"
 
     -- Tags that apply to this spell
     self.tags = {"rude", "damage"}
@@ -51,15 +51,16 @@ function spell:onCast(user, target)
     Game.battle.timer:after(15/30, function()
         Assets.playSound("rudebuster_swing")
         local x, y = user:getRelativePos(user.width, user.height/2 - 10, Game.battle)
-        local tx, ty = target:getRelativePos(target.width/2, target.height/2, Game.battle)
+        local tx, ty = target:getRelativePos(target.width/2, target.height/2, Game.battle) --target:getRelativePos(20, 20, Game.battle)
         local blast = RudeBusterBeam(false, x, y, tx, ty, function(pressed)
-            local damage = math.ceil((user.chara:getStat("magic") * 5) + (user.chara:getStat("attack") * 11) - (target.defense * 3))
+            local damage = math.ceil((user.chara:getStat("magic") * 5) + (user.chara:getStat("attack") * 11))-- - (target.defense * 3))
             if pressed then
                 damage = damage + 30
                 Assets.playSound("scytheburst")
             end
             target:flash()
             target:hurt(damage, user)
+            --target:heal(-damage)
             buster_finished = true
             if anim_finished then
                 Game.battle:finishAction()

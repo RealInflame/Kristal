@@ -5,7 +5,7 @@ function PinkSoul:init(x, y)
 
     self:setColor(1, 0, 0.75)
 
-    self.rotation = math.pi
+    self.rotation = 0 --math.pi
 end
 
 function PinkSoul:onCollide(bullet)
@@ -43,6 +43,11 @@ function PinkSoul:update()
             self:explode()
         end
     end]]
+
+    self.rotation = self.rotation + (math.pi * 0.05)
+    if self.rotation >= math.pi * 2 then
+        self.rotation = 0
+    end
 
     super:update(self)
 end
