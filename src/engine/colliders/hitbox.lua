@@ -1,7 +1,9 @@
+---@class Hitbox : Collider
+---@overload fun(...) : Hitbox
 local Hitbox, super = Class(Collider)
 
 function Hitbox:init(parent, x, y, width, height, mode)
-    super:init(self, parent, x, y, mode)
+    super.init(self, parent, x, y, mode)
 
     self.width = width or 0
     self.height = height or 0
@@ -44,7 +46,7 @@ function Hitbox:collidesWith(other)
         end
     end
 
-    return super:collidesWith(self, other)
+    return super.collidesWith(self, other)
 end
 
 -- Note: returns polygon
@@ -59,15 +61,15 @@ function Hitbox:getShapeFor(other)
 end
 
 function Hitbox:draw(r,g,b,a)
-    love.graphics.setColor(r,g,b,a)
+    Draw.setColor(r,g,b,a)
     love.graphics.setLineWidth(1)
     love.graphics.rectangle("line", self.x, self.y, Utils.absClamp(self.width, 1, math.huge), Utils.absClamp(self.height, 1, math.huge))
-    love.graphics.setColor(1, 1, 1, 1)
+    Draw.setColor(1, 1, 1, 1)
 end
 function Hitbox:drawFill(r,g,b,a)
-    love.graphics.setColor(r,g,b,a)
+    Draw.setColor(r,g,b,a)
     love.graphics.rectangle("fill", self.x, self.y, Utils.absClamp(self.width, 1, math.huge), Utils.absClamp(self.height, 1, math.huge))
-    love.graphics.setColor(1, 1, 1, 1)
+    Draw.setColor(1, 1, 1, 1)
 end
 
 return Hitbox

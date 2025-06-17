@@ -1,7 +1,9 @@
+---@class Choicebox : Object
+---@overload fun(...) : Choicebox
 local Choicebox, super = Class(Object)
 
 function Choicebox:init(x, y, width, height, battle_box, options)
-    super:init(self, x, y, width, height)
+    super.init(self, x, y, width, height)
 
     self.box = UIBox(0, 0, width, height)
     self.box.layer = -1
@@ -63,30 +65,30 @@ function Choicebox:update()
             end
         end
     end
-    super:update(self)
+    super.update(self)
 end
 
 function Choicebox:draw()
-    super:draw(self)
+    super.draw(self)
     love.graphics.setFont(self.font)
     if self.choices[1] then
-        love.graphics.setColor(self.main_colors[1])
-        if self.current_choice == 1 then love.graphics.setColor(self.hover_colors[1]) end
+        Draw.setColor(self.main_colors[1])
+        if self.current_choice == 1 then Draw.setColor(self.hover_colors[1]) end
         love.graphics.print(self.choices[1], 36, 24)
     end
     if self.choices[2] then
-        love.graphics.setColor(self.main_colors[2])
-        if self.current_choice == 2 then love.graphics.setColor(self.hover_colors[2]) end
+        Draw.setColor(self.main_colors[2])
+        if self.current_choice == 2 then Draw.setColor(self.hover_colors[2]) end
         love.graphics.print(self.choices[2], 528 - self.font:getWidth(self.choices[2]), 24)
     end
     if self.choices[3] then
-        love.graphics.setColor(self.main_colors[3])
-        if self.current_choice == 3 then love.graphics.setColor(self.hover_colors[3]) end
+        Draw.setColor(self.main_colors[3])
+        if self.current_choice == 3 then Draw.setColor(self.hover_colors[3]) end
         love.graphics.print(self.choices[3], 17 + Utils.round(self.width / 2) - Utils.round(self.font:getWidth(self.choices[3]) / 2), -8)
     end
     if self.choices[4] then
-        love.graphics.setColor(self.main_colors[4])
-        if self.current_choice == 4 then love.graphics.setColor(self.hover_colors[4]) end
+        Draw.setColor(self.main_colors[4])
+        if self.current_choice == 4 then Draw.setColor(self.hover_colors[4]) end
         love.graphics.print(self.choices[4], 17 + Utils.round(self.width / 2) - Utils.round(self.font:getWidth(self.choices[4]) / 2), 78)
     end
 
@@ -101,8 +103,8 @@ function Choicebox:draw()
     local heart_x = soul_positions[self.current_choice + 1][1]
     local heart_y = soul_positions[self.current_choice + 1][2]
 
-    love.graphics.setColor(Game:getSoulColor())
-    love.graphics.draw(self.heart, heart_x, heart_y, 0, 2, 2)
+    Draw.setColor(Game:getSoulColor())
+    Draw.draw(self.heart, heart_x, heart_y, 0, 2, 2)
 end
 
 function Choicebox:setSize(w, h)
@@ -117,10 +119,15 @@ function Choicebox:clearChoices()
     self.current_choice = 0
 end
 
+--- Adds a new choice to the choicebox.
+---@param name string The name of the new choice that will be shown for the selection.
 function Choicebox:addChoice(name)
     table.insert(self.choices, name)
 end
 
+--- Sets the main and hover colors for every choice in the choicebox.
+---@param main? table   The main color to set for all choices, or a table of main colors for each individual choice. (Defaults to `COLORS.white`)
+---@param hover? table  The hover color to set for all choices, or a table of hover colors for each individual choice. (Defaults to `COLORS.yellow`)
 function Choicebox:setColors(main, hover)
     main = main or {1,1,1}
     if type(main[1]) == "number" then

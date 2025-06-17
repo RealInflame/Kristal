@@ -1,7 +1,7 @@
 local item, super = Class(LightEquipItem, "light/eraser")
 
 function item:init()
-    super:init(self)
+    super.init(self)
 
     -- Display name
     self.name = "Eraser"
@@ -10,6 +10,9 @@ function item:init()
     self.type = "weapon"
     -- Whether this item is for the light world
     self.light = true
+
+    -- Item description text (unused by light items outside of debug menu)
+    self.description = "Pink, it bounces when thrown on the ground."
 
     -- Light world check text
     self.check = "Weapon 1 AT\n* Pink,[wait:5] it bounces when thrown on the ground."

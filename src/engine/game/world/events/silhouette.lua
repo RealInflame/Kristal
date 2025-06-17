@@ -1,11 +1,16 @@
+--- A region in the Overworld that draws silhouettes of character's inside it that draw on top of the world. The original characters are not hidden. \
+--- `Silhouette` is an [`Event`](lua://Event.init) - naming an object `silhouette` on an `objects` layer in a map creates this object. \
+---@class Silhouette : Event
+---
+---@field solid boolean
+---
+---@overload fun(...) : Silhouette
 local Silhouette, super = Class(Event)
 
-function Silhouette:init(x, y, w, h)
-    super:init(self, x, y, w, h)
+function Silhouette:init(x, y, shape)
+    super.init(self, x, y, shape)
 
     self.solid = false
-
-    self.canvas = love.graphics.newCanvas(self.width, self.height)
 end
 
 function Silhouette:drawCharacter(object)
@@ -17,19 +22,18 @@ function Silhouette:drawCharacter(object)
 end
 
 function Silhouette:draw()
-    super:draw(self)
+    super.draw(self)
 
-    Draw.pushCanvas(self.canvas)
+    local canvas = Draw.pushCanvas(self.width, self.height)
     love.graphics.clear()
 
     love.graphics.translate(-self.x, -self.y)
 
     for _, object in ipairs(Game.world.children) do
         if object:includes(Character) then
-
             love.graphics.setShader(Kristal.Shaders["AddColor"])
 
-            Kristal.Shaders["AddColor"]:send("inputcolor", {0, 0, 0, 1})
+            Kristal.Shaders["AddColor"]:send("inputcolor", { 0, 0, 0, 1 })
             Kristal.Shaders["AddColor"]:send("amount", 1)
 
             self:drawCharacter(object)
@@ -40,9 +44,9 @@ function Silhouette:draw()
 
     Draw.popCanvas()
 
-    love.graphics.setColor(0, 0, 0, 0.5)
-    love.graphics.draw(self.canvas)
-    love.graphics.setColor(1, 1, 1, 1)
+    Draw.setColor(0, 0, 0, 0.5)
+    Draw.draw(canvas)
+    Draw.setColor(1, 1, 1, 1)
 end
 
 return Silhouette

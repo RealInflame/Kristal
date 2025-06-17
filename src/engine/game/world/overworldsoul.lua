@@ -1,7 +1,14 @@
+--- The soul of the player used when in the Overworld. \
+--- The Overworld soul defines the player's hitbox against bullets in the Overworld and controls taking damage from them - as such it is only visible if inside a battle area.
+---@class OverworldSoul : Object
+---
+---@field collider CircleCollider The hitbox of the soul, defaulting to a circle with an 8 pixel radius
+---
+---@overload fun(x?: number, y?: number) : OverworldSoul
 local OverworldSoul, super = Class(Object)
 
 function OverworldSoul:init(x, y)
-    super:init(self, x, y)
+    super.init(self, x, y)
 
     self:setColor(1, 0, 0)
 
@@ -26,23 +33,26 @@ function OverworldSoul:init(x, y)
 end
 
 function OverworldSoul:canDebugSelect()
-    return self.alpha > 0 and super:canDebugSelect(self)
+    return self.alpha > 0 and super.canDebugSelect(self)
 end
 
+--- *(Override)* Called whenever a bullet hits the soul \
+--- *By default, calls `bullet:onCollide()` which handles the soul taking damage*
+---@param bullet WorldBullet
 function OverworldSoul:onCollide(bullet)
     -- Handles damage
     bullet:onCollide(self)
 end
 
 function OverworldSoul:onAdd(parent)
-    super:onAdd(self, parent)
+    super.onAdd(self, parent)
     if parent:includes(World) then
         self.world = parent
     end
 end
 
 function OverworldSoul:onRemove(parent)
-    super:onRemove(self, parent)
+    super.onRemove(self, parent)
     if self.world == parent then
         self.world = nil
     end
@@ -82,36 +92,28 @@ function OverworldSoul:update()
 
     local soul_party = Game:getSoulPartyMember()
     if soul_party then
-        local soul_character = self.world:getPartyCharacter(soul_party)
+        local soul_character = self.world:getPartyCharacterInParty(soul_party)
         if soul_character then
-            sx, sy = soul_character:getRelativePos(soul_character.width/2, soul_character.height/2)
-
-            sx = sx + 1
-            sy = sy + 11
-            -- TODO: unhardcode offset (???)
+            sx, sy = soul_character:getRelativePos(soul_character.actor:getSoulOffset())
         end
     end
 
     local tx, ty = sx, sy
 
     if self.world.player and self.world.player.battle_alpha > 0 then
-        tx, ty = self.world.player:getRelativePos(self.world.player.width/2, self.world.player.height/2)
+        tx, ty = self.world.player:getRelativePos(self.world.player.actor:getSoulOffset())
         progress = self.world.player.battle_alpha * 2
-
-        tx = tx + 1
-        ty = ty + 11
-        -- TODO: unhardcode offset (???)
     end
 
     self.x = Utils.lerp(sx, tx, progress * 1.5)
     self.y = Utils.lerp(sy, ty, progress * 1.5)
     self.alpha = progress
 
-    super:update(self)
+    super.update(self)
 end
 
 function OverworldSoul:draw()
-    super:draw(self)
+    super.draw(self)
 
     if DEBUG_RENDER then
         self.collider:draw(0, 1, 0)

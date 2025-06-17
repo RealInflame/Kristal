@@ -1,7 +1,7 @@
 local actor, super = Class(Actor, "kris")
 
 function actor:init()
-    super:init(self)
+    super.init(self)
 
     -- Display name (optional)
     self.name = "Kris"
@@ -12,6 +12,10 @@ function actor:init()
 
     -- Hitbox for this actor in the overworld (optional, uses width and height by default)
     self.hitbox = {0, 25, 19, 14}
+
+    -- A table that defines where the Soul should be placed on this actor if they are a player.
+    -- First value is x, second value is y.
+    self.soul_offset = {10, 24}
 
     -- Color for this actor used in outline areas (optional, defaults to red)
     self.color = {0, 1, 1}
@@ -57,7 +61,7 @@ function actor:init()
         ["battle/defeat"]       = {"battle/defeat", 1/15, false},
 
         ["battle/transition"]   = {"sword_jump_down", 0.2, true},
-        ["battle/intro"]        = {"battle/attack", 1/15, true},
+        ["battle/intro"]        = {"battle/attack", 1/15, false},
         ["battle/victory"]      = {"battle/victory", 1/10, false},
 
         -- Cutscene animations
@@ -68,6 +72,14 @@ function actor:init()
     if Game.chapter == 1 then
         self.animations["battle/transition"] = {"walk/right", 0, true}
     end
+
+    -- Tables of sprites to change into in mirrors
+    self.mirror_sprites = {
+        ["walk/down"] = "walk/up",
+        ["walk/up"] = "walk/down",
+        ["walk/left"] = "walk/left",
+        ["walk/right"] = "walk/right",
+    }
 
     -- Table of sprite offsets (indexed by sprite name)
     self.offsets = {

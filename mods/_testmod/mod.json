@@ -1,14 +1,16 @@
 {
     "id": "testmod",
     "name": "Test Mod",
-    "subtitle": "A testing mod full of various stuff and things",
+    "subtitle": "For Kristal development, NOT an example mod!",
 
     "version": "v?.?.?",
-    "engineVer": "v0.8.0-dev",
+    "engineVer": "v0.10.0-dev",
 
     "chapter": 2,
 
     "map": "alley",
+    //"encounter": "virovirokun", // for testing encounter reloading
+    
     "party": ["kris", "susie", "ralsei"],
     //"party": ["kris", "noelle"], // for testing snowgrave
     "inventory": {
@@ -31,11 +33,17 @@
     "quickReload": true,
     "hidden": false,
 
+    "defaultFlagFilterType": "any",
+    "defaultFlagFilterQuery": "#",
+    "defaultFlagFilterMode": "invert_startsWith",
+
     "config": {
         "kristal": {
             //"growStrongerChara": "susie",
 
             //"ralseiStyle": 2
+            "keepTensionAfterBattle": true,
+            "overworldSpells": true
         },
         "virovirokun": {
             "enable_cook": true,

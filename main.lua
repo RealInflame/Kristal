@@ -1,6 +1,15 @@
+require("src.engine.tweaks")
+
 require("src.engine.vars")
 require("src.engine.statevars")
+require("src.engine.vendcust")
 
+DiscordRPC = require("src.lib.discordrpc")
+
+---@diagnostic disable-next-line: lowercase-global
+https = require("src.lib.https")
+
+---@diagnostic disable-next-line: lowercase-global
 utf8 = require("utf8")
 
 _Class = require("src.lib.hump.class")
@@ -13,8 +22,9 @@ SemVer = require("src.lib.semver")
 require("src.lib.stable_sort")
 
 Class = require("src.utils.class")
-require ("src.utils.graphics")
+require("src.utils.graphics")
 
+GitFinder = require("src.utils.gitfinder")
 Utils = require("src.utils.utils")
 CollisionUtil = require("src.utils.collision")
 Draw = require("src.utils.draw")
@@ -22,6 +32,7 @@ Draw = require("src.utils.draw")
 Kristal = require("src.kristal")
 -- Ease of access for game variables
 Game = Kristal.States["Game"]
+MainMenu = Kristal.States["MainMenu"]
 
 Assets = require("src.engine.assets")
 Music = require("src.engine.music")
@@ -44,18 +55,31 @@ Fader = require("src.engine.objects.fader")
 HPText = require("src.engine.objects.hptext")
 Timer = require("src.engine.objects.timer")
 StateManager = require("src.engine.objects.statemanager")
+StateClass = require("src.engine.objects.stateclass")
 Anchor = require("src.engine.objects.anchor")
 Callback = require("src.engine.objects.callback")
 Video = require("src.engine.objects.video")
 GonerChoice = require("src.engine.objects.gonerchoice")
 GonerKeyboard = require("src.engine.objects.gonerkeyboard")
 
-ModList = require("src.engine.menu.modlist")
-ModButton = require("src.engine.menu.modbutton")
-ModCreateButton = require("src.engine.menu.modcreatebutton")
-FileList = require("src.engine.menu.filelist")
-FileButton = require("src.engine.menu.filebutton")
-FileNamer = require("src.engine.menu.filenamer")
+MainMenuTitle = require("src.engine.menu.mainmenutitle")
+MainMenuOptions = require("src.engine.menu.mainmenuoptions")
+MainMenuCredits = require("src.engine.menu.mainmenucredits")
+MainMenuModList = require("src.engine.menu.mainmenumodlist")
+MainMenuModCreate = require("src.engine.menu.mainmenumodcreate")
+MainMenuModConfig = require("src.engine.menu.mainmenumodconfig")
+MainMenuModError = require("src.engine.menu.mainmenumoderror")
+MainMenuFileSelect = require("src.engine.menu.mainmenufileselect")
+MainMenuFileName = require("src.engine.menu.mainmenufilename")
+MainMenuDefaultName = require("src.engine.menu.mainmenudefaultname")
+MainMenuControls = require("src.engine.menu.mainmenucontrols")
+MainMenuDeadzone = require("src.engine.menu.mainmenudeadzone")
+
+ModList = require("src.engine.menu.objects.modlist")
+ModButton = require("src.engine.menu.objects.modbutton")
+ModCreateButton = require("src.engine.menu.objects.modcreatebutton")
+FileButton = require("src.engine.menu.objects.filebutton")
+FileNamer = require("src.engine.menu.objects.filenamer")
 
 DarkTransitionLine = require("src.engine.game.darktransition.darktransitionline")
 DarkTransitionParticle = require("src.engine.game.darktransition.darktransitionparticle")
@@ -73,6 +97,7 @@ BattleOutlineFX = require("src.engine.drawfx.battleoutlinefx")
 ShadowFX = require("src.engine.drawfx.shadowfx")
 FountainShadowFX = require("src.engine.drawfx.fountainshadowfx")
 GradientFX = require("src.engine.drawfx.gradientfx")
+ScissorFX = require("src.engine.drawfx.scissorfx")
 
 Collider = require("src.engine.colliders.collider")
 ColliderGroup = require("src.engine.colliders.collidergroup")
@@ -89,15 +114,18 @@ Item = require("src.engine.game.common.data.item")
 HealItem = require("src.engine.game.common.data.healitem")
 TensionItem = require("src.engine.game.common.data.tensionitem")
 LightEquipItem = require("src.engine.game.common.data.lightequipitem")
+Recruit = require("src.engine.game.common.data.recruit")
 
 ActorSprite = require("src.engine.game.common.actorsprite")
 Inventory = require("src.engine.game.common.inventory")
 DarkInventory = require("src.engine.game.common.darkinventory")
 LightInventory = require("src.engine.game.common.lightinventory")
+LancerKeyItem = require("src.engine.game.common.lancerkeyitem")
 
 Cutscene = require("src.engine.game.common.cutscene")
 WorldCutscene = require("src.engine.game.world.worldcutscene")
 BattleCutscene = require("src.engine.game.battle.battlecutscene")
+LegendCutscene = require("src.engine.game.legend.legendcutscene")
 
 Console = require("src.engine.game.console")
 DebugSystem = require("src.engine.game.debugsystem")
@@ -107,6 +135,7 @@ DebugWindow = require("src.engine.game.debugwindow")
 UIBox = require("src.engine.game.common.uibox")
 Textbox = require("src.engine.game.common.textbox")
 Choicebox = require("src.engine.game.common.choicebox")
+TextChoicebox = require("src.engine.game.common.textchoicebox")
 SmallFaceText = require("src.engine.game.common.smallfacetext")
 
 World = require("src.engine.game.world")
@@ -122,9 +151,11 @@ ChaserEnemy = require("src.engine.game.world.chaserenemy")
 
 SaveMenu = require("src.engine.game.world.ui.savemenu")
 SimpleSaveMenu = require("src.engine.game.world.ui.simplesavemenu")
+LightSaveMenu = require("src.engine.game.world.ui.lightsavemenu")
 HealthBar = require("src.engine.game.world.ui.healthbar")
 OverworldActionBox = require("src.engine.game.world.ui.overworldactionbox")
 Shopbox = require("src.engine.game.world.ui.shopbox")
+RecruitMenu = require("src.engine.game.world.ui.recruitmenu")
 
 DarkMenu = require("src.engine.game.world.ui.dark.darkmenu")
 DarkItemMenu = require("src.engine.game.world.ui.dark.darkitemmenu")
@@ -162,6 +193,8 @@ FrozenEnemy = require("src.engine.game.world.frozenenemy")
 WarpDoor = require("src.engine.game.world.events.warpdoor")
 DarkFountain = require("src.engine.game.world.events.darkfountain")
 FountainFloor = require("src.engine.game.world.events.fountainfloor")
+QuicksaveEvent = require("src.engine.game.world.events.quicksave")
+MirrorArea = require("src.engine.game.world.events.mirror")
 
 ToggleController = require("src.engine.game.world.events.controllers.togglecontroller")
 FountainShadowController = require("src.engine.game.world.events.controllers.fountainshadowcontroller")
@@ -192,11 +225,13 @@ SpeechBubble = require("src.engine.game.battle.ui.speechbubble")
 
 FlashFade = require("src.engine.game.effects.flashfade")
 DamageNumber = require("src.engine.game.effects.damagenumber")
+RecruitMessage = require("src.engine.game.effects.recruitmessage")
 HeartBurst = require("src.engine.game.effects.heartburst")
 HealSparkle = require("src.engine.game.effects.healsparkle")
 SpareSparkle = require("src.engine.game.effects.sparesparkle")
 SpareZ = require("src.engine.game.effects.sparez")
 SleepMistEffect = require("src.engine.game.effects.sleepmisteffect")
+SnowglobeEffect = require("src.engine.game.effects.snowglobeeffect")
 IceSpellEffect = require("src.engine.game.effects.icespelleffect")
 IceSpellBurst = require("src.engine.game.effects.icespellburst")
 SnowGraveSnowflake = require("src.engine.game.effects.snowgravesnowflake")
@@ -207,9 +242,48 @@ RudeBusterBurst = require("src.engine.game.effects.rudebusterburst")
 Shop = require("src.engine.game.shop")
 Shopkeeper = require("src.engine.game.shop.shopkeeper")
 
+Border = require("src.engine.border")
+ImageBorder = require("src.engine.imageborder")
+
 GameOver = require("src.engine.game.gameover")
 
+Legend = require("src.engine.game.legend")
+
 DarkTransition = require("src.engine.game.darktransition.darktransition")
+
+EasingSoul = require("src.engine.objects.easingsoul")
+
+-- UI SYSTEM
+Component = require("src.engine.ui.component")
+BoxComponent = require("src.engine.ui.components.box")
+MainMenuBoxComponent = require("src.engine.ui.components.mainmenubox")
+SeparatorComponent = require("src.engine.ui.components.separator")
+BarComponent = require("src.engine.ui.components.bar")
+ScrollbarComponent = require("src.engine.ui.components.scrollbar")
+
+AbstractMenuComponent = require("src.engine.ui.components.abstractmenu")
+BasicMenuComponent = require("src.engine.ui.components.basicmenu")
+EasingSoulMenuComponent = require("src.engine.ui.components.easingsoulmenu")
+
+AbstractMenuItemComponent = require("src.engine.ui.components.abstractmenuitem")
+TextMenuItemComponent = require("src.engine.ui.components.textmenuitem")
+SoulMenuItemComponent = require("src.engine.ui.components.soulmenuitem")
+TextInputMenuItemComponent = require("src.engine.ui.components.textinputmenuitem")
+BooleanMenuItemComponent = require("src.engine.ui.components.booleanmenuitem")
+ListMenuItemComponent = require("src.engine.ui.components.listmenuitem")
+ArrowListMenuItemComponent = require("src.engine.ui.components.arrowlistmenuitem")
+IntegerMenuItemComponent = require("src.engine.ui.components.integermenuitem")
+ArrowIntegerMenuItemComponent = require("src.engine.ui.components.arrowintegermenuitem")
+LabelMenuItemComponent = require("src.engine.ui.components.labelmenuitem")
+
+Layout = require("src.engine.ui.layout")
+HorizontalLayout = require("src.engine.ui.layouts.horizontal")
+VerticalLayout = require("src.engine.ui.layouts.vertical")
+
+Sizing = require("src.engine.ui.sizing")
+FixedSizing = require("src.engine.ui.sizing.fixed")
+FitSizing = require("src.engine.ui.sizing.fit")
+FillSizing = require("src.engine.ui.sizing.fill")
 
 Hotswapper = require("src.hotswapper")
 
@@ -221,7 +295,7 @@ function love.run()
         error("love.timer is required")
     end
 
----@diagnostic disable-next-line: undefined-field, redundant-parameter
+    ---@diagnostic disable-next-line: undefined-field, redundant-parameter
     if love.load then love.load(love.arg.parseGameArguments(arg), arg) end
 
     -- We don't want the first frame's DT to include time taken by love.load.
@@ -237,14 +311,16 @@ function love.run()
         -- Process events.
         if love.event then
             love.event.pump()
-            for name, a,b,c,d,e,f in love.event.poll() do
+            for name, a, b, c, d, e, f in love.event.poll() do
                 if name == "quit" then
                     if not love.quit or not love.quit() then
                         return a or 0
                     end
+                elseif name == "threaderror" then
+                    error({ msg = b })
                 end
----@diagnostic disable-next-line: undefined-field
-                love.handlers[name](a,b,c,d,e,f)
+                ---@diagnostic disable-next-line: undefined-field
+                love.handlers[name](a, b, c, d, e, f)
             end
         end
 
@@ -259,7 +335,7 @@ function love.run()
             love.graphics.origin()
             love.graphics.clear(love.graphics.getBackgroundColor())
 
----@diagnostic disable-next-line: undefined-field
+            ---@diagnostic disable-next-line: undefined-field
             if love.draw then love.draw() end
 
             love.graphics.present()
@@ -267,6 +343,8 @@ function love.run()
     end
 
     local function mainLoop()
+        local frame_skip = Kristal and Kristal.Config and Kristal.Config["frameSkip"]
+
         if FRAMERATE > 0 and not FAST_FORWARD then
             local tick_rate = 1 / FRAMERATE
 
@@ -288,12 +366,18 @@ function love.run()
 
             if update then
                 FPS_COUNTER = FPS_COUNTER + 1
-                local ret = doUpdate(tick_rate)
+                local update_dt = tick_rate
+                if frame_skip then
+                    update_dt = math.min(math.max(dt, tick_rate), 1 / 20) -- Limit dt to at least 20fps if frameSkip is enabled to avoid huge breakage
+                end
+                local ret = doUpdate(update_dt)
                 if ret then return ret end
                 doDraw()
             end
         else
-            local dt = math.min(love.timer.step(), 1/30)
+            -- Limit dt to 30fps (or 20fps if frameSkip is enabled)
+            -- Don't want to go unlimited or else collision and other stuff might break
+            local dt = math.min(love.timer.step(), frame_skip and (1 / 20) or (1 / 30))
 
             FPS = love.timer.getFPS()
 
@@ -306,7 +390,7 @@ function love.run()
     end
 
     -- Main loop time.
-    return function()
+    return function ()
         if error_result then
             local result = error_result()
             if result then
@@ -322,11 +406,26 @@ function love.run()
                 end
             end
         else
-            local success, result = xpcall(mainLoop, Kristal.errorHandler)
+            local success, result = xpcall(mainLoop, 
+                function(err_msg) 
+                    --has a chance of failing due to a stack overflow. try and catch that, but this *also* might cause a stack overflow
+                    local ok, msg = pcall(Kristal.errorHandler, err_msg)
+                    if(ok) then
+                        return msg
+                    else -- err_msg *might* contain a stack overflow error, pass it on if the kristal error handler fails
+                        return debug.traceback() --somehow, this affects the above if statement? im so confused but it works...doesnt send err_msg through
+                    end
+                end
+            )
             if success then
                 return result
-            else
+            elseif type(result) == "function" then
                 error_result = result
+            else
+                --this should only happen when there's an internal error with the errorhandler or the callstack overflows
+                --the LUA_ERRERR state is set internally by the lua engine for both of these cases 
+                --see https://www.lua.org/source/5.4/ldo.c.html
+                error_result = Kristal.errorHandler({ critical = result })
             end
         end
     end

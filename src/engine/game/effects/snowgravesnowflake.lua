@@ -1,7 +1,7 @@
  local SnowGraveSnowflake, super = Class(Object)
 
 function SnowGraveSnowflake:init(x, y)
-    super:init(self, x, y)
+    super.init(self, x, y)
 
     self.snowflake = Assets.getTexture("effects/icespell/snowflake")
 
@@ -11,7 +11,7 @@ function SnowGraveSnowflake:init(x, y)
 end
 
 function SnowGraveSnowflake:update()
-    super:update(self)
+    super.update(self)
     self.timer = self.timer + DTMULT
     self.siner = self.siner + DTMULT
 
@@ -21,7 +21,7 @@ function SnowGraveSnowflake:update()
 end
 
 function SnowGraveSnowflake:draw()
-    super:draw(self)
+    super.draw(self)
 
     love.graphics.draw(self.snowflake, 0, 0, 0, (math.sin(self.siner) * 2), 2, self.snowflake:getWidth() / 2, self.snowflake:getHeight() / 2)
     love.graphics.draw(self.snowflake,  (math.sin((self.siner / 3)) * 30), 0, 0, (math.sin((self.siner / 3)) * 2), 2, self.snowflake:getWidth() / 2, self.snowflake:getHeight() / 2)

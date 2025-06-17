@@ -1,7 +1,28 @@
+--- A Fader is an Object that can be used to fade the screen in and out, usually using the instance stored at [`Game.fader`](lua://Game.fader) \
+--- Modifying the fader's `width`, `height`, `x`, and `y` values can make it only affect a portion of the screen
+---@class Fader : Object
+---
+---@field width number
+---@field height number
+---
+---@field fade_color table
+---@field alpha number
+---
+---@field state string
+---@field callback_function fun()
+---
+---@field default_speed number
+---@field speed number
+---
+---@field music Music?
+---@field debug_select boolean
+---@field blocky boolean
+---
+---@overload fun(...) : Fader
 local Fader, super = Class(Object)
 
 function Fader:init()
-    super:init(self, 0, 0)
+    super.init(self, 0, 0)
     self.width = SCREEN_WIDTH
     self.height = SCREEN_HEIGHT
 
@@ -24,6 +45,9 @@ function Fader:init()
     self.blocky = false
 end
 
+--- *(Called internally)* Processes the `options` table for fades, setting values for the appropriate fields.
+---@param options table         The table of options for the current fade.
+---@param reset_values boolean  Whether to reset values from previous fades. (Usually `true` when fading out, and `false` when fading in)
 function Fader:parseOptions(options, reset_values)
     options = options or {}
 
@@ -35,6 +59,9 @@ function Fader:parseOptions(options, reset_values)
     return options
 end
 
+--- *(Called internally)* Processes music fading with the `options` table for fades.
+---@param to        number  The volume to fade the music to.
+---@param options   table   The table of options for the current fade.
 function Fader:parseMusicFade(to, options)
     options = options or {}
     if options["music"] then
@@ -59,6 +86,15 @@ function Fader:parseMusicFade(to, options)
     end
 end
 
+--- Starts a transitional fade that runs callbacks at certain points in the fade progress
+---@param middle_callback?   fun()   A function that runs at the instant the fade out finishes, before fading back in
+---@param end_callback?      fun()   A function that runs when the fader has fully faded back in
+---@param options?           table   A table defining additional properties to control the fade.
+---| "speed"    # The speed to fade out at, in seconds. (Defaults to `0.25`)
+---| "color"    # The color that should be faded to (Defaults to `COLORS.black`)
+---| "alpha"    # The alpha to start at (Defaults to `0`)
+---| "blocky"   # Whether to do a rough, 'blocky' fade. (Defaults to `false`)
+---| "music"    # The speed to fade the music at, or whether to fade it at all (Defaults to fade speed)
 function Fader:transition(middle_callback, end_callback, options)
     options = options or {}
     self:fadeOut(function()
@@ -71,9 +107,20 @@ function Fader:transition(middle_callback, end_callback, options)
     end, options)
 end
 
+--- Starts a fade out with the given options. \
+--- A default fadeout will fade to black over `0.25` seconds, fading out the music as well.
+---@overload fun(self: Fader, options?: table)
+---@param callback? function    A function that will be called when the fade has finished.
+---@param options?  table       A table defining additional properties to control the fade.
+---| "speed"    # The speed to fade out at, in seconds. (Defaults to `0.25`)
+---| "color"    # The color that should be faded to (Defaults to `COLORS.black`)
+---| "alpha"    # The alpha to start at (Defaults to `0`)
+---| "blocky"   # Whether to do a rough, 'blocky' fade. (Defaults to `false`)
+---| "music"    # The speed to fade the music at, or whether to fade it at all (Defaults to fade speed)
 function Fader:fadeOut(callback, options)
     if type(callback) == "table" then
         options = callback
+        ---@diagnostic disable-next-line: cast-local-type
         callback = nil
     end
     self:parseOptions(options, true)
@@ -82,9 +129,20 @@ function Fader:fadeOut(callback, options)
     self.state = "FADEOUT"
 end
 
+--- Fades the screen back in with the given options and based on the previous fade out. \
+--- A default fadein will fade the screen and music in over `0.25` seconds.
+---@overload fun(self: Fader, options?: table)
+---@param callback? function    A function that will be called when the fade has finished.
+---@param options?  table       A table defining additional properties to control the fade.
+---| "speed"    # The speed to fade in at, in seconds (Defaults to last fadeOut's speed.)
+---| "color"    # The color that should be faded to (Defaults to last fadeOut's color)
+---| "alpha"    # The alpha to start at (Defaults to `1`)
+---| "blocky"   # Whether to do a rough, 'blocky' fade. (Defaults to `false`)
+---| "music"    # The speed to fade the music at, or whether to fade it at all (Defaults to fade speed)
 function Fader:fadeIn(callback, options)
     if type(callback) == "table" then
         options = callback
+        ---@diagnostic disable-next-line: cast-local-type
         callback = nil
     end
     self:parseOptions(options, false)
@@ -116,6 +174,10 @@ function Fader:update()
             end
         end
     end
+    if self.state == "NONE" then
+        self:setColor(0, 0, 0)
+        self.fade_color = self.color
+    end
 end
 
 function Fader:draw()
@@ -131,11 +193,11 @@ function Fader:draw()
     end
 
     color[4] = alpha
-    love.graphics.setColor(color)
+    Draw.setColor(color)
     love.graphics.rectangle("fill", 0, 0, self.width, self.height)
 
-    love.graphics.setColor(1, 1, 1, 1)
-    super:draw(self)
+    Draw.setColor(1, 1, 1, 1)
+    super.draw(self)
 end
 
 return Fader

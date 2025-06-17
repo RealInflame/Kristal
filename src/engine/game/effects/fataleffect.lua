@@ -1,7 +1,9 @@
+---@class FatalEffect : Object
+---@overload fun(...) : FatalEffect
 local FatalEffect, super = Class(Object)
 
 function FatalEffect:init(texture, x, y, after)
-    super:init(self, x, y)
+    super.init(self, x, y)
 
     if type(texture) == "string" then
         texture = Assets.getTexture(texture) or (Assets.getFrames(texture)[1])
@@ -46,7 +48,7 @@ function FatalEffect:init(texture, x, y, after)
 end
 
 function FatalEffect:onAdd(parent)
-    super:onAdd(parent)
+    super.onAdd(self, parent)
 
     self.start_color = self.color
 end
@@ -74,7 +76,7 @@ function FatalEffect:update()
         self:remove()
     end
 
-    super:update(self)
+    super.update(self)
 end
 
 function FatalEffect:draw()
@@ -83,12 +85,12 @@ function FatalEffect:draw()
     for i = 0, self.blocks_x do
         for j = 0, self.blocks_y do
             local block = self.blocks[i][j]
-            love.graphics.setColor(r, g, b, a * (1 - (block.speed / 12)))
-            love.graphics.draw(self.texture, block.quad, block.x, (j * self.block_size))
+            Draw.setColor(r, g, b, a * (1 - (block.speed / 12)))
+            Draw.draw(self.texture, block.quad, block.x, (j * self.block_size))
         end
     end
 
-    super:draw(self)
+    super.draw(self)
 end
 
 return FatalEffect

@@ -1,7 +1,9 @@
+---@class PointCollider : Collider
+---@overload fun(...) : PointCollider
 local PointCollider, super = Class(Collider)
 
 function PointCollider:init(parent, x, y, mode)
-    super:init(self, parent, x, y, mode)
+    super.init(self, parent, x, y, mode)
 end
 
 function PointCollider:collidesWith(other)
@@ -41,7 +43,7 @@ function PointCollider:collidesWith(other)
         end
     end
 
-    return super:collidesWith(self, other)
+    return super.collidesWith(self, other)
 end
 
 function PointCollider:getShapeFor(other)
@@ -49,16 +51,16 @@ function PointCollider:getShapeFor(other)
 end
 
 function PointCollider:draw(r,g,b,a)
-    love.graphics.setColor(r,g,b,a)
+    Draw.setColor(r,g,b,a)
     love.graphics.setPointSize(3)
     love.graphics.points(self.x, self.y)
-    love.graphics.setColor(1, 1, 1, 1)
+    Draw.setColor(1, 1, 1, 1)
 end
 function PointCollider:drawFill(r,g,b,a)
-    love.graphics.setColor(r,g,b,a)
+    Draw.setColor(r,g,b,a)
     love.graphics.setPointSize(5)
     love.graphics.points(self.x, self.y)
-    love.graphics.setColor(1, 1, 1, 1)
+    Draw.setColor(1, 1, 1, 1)
 end
 
 return PointCollider

@@ -1,7 +1,7 @@
 local item, super = Class(Item, "light/ball_of_junk")
 
-function item:init(inventory)
-    super:init(self)
+function item:init()
+    super.init(self)
 
     -- Display name
     self.name = "Ball of Junk"
@@ -11,6 +11,9 @@ function item:init(inventory)
     -- Whether this item is for the light world
     self.light = true
 
+    -- Item description text (unused by light items outside of debug menu)
+    self.description = "A small ball of accumulated things in your pocket."
+
     -- Light world check text
     self.check = "A small ball\nof accumulated things in your\npocket."
 
@@ -19,8 +22,6 @@ function item:init(inventory)
     -- Item this item will get turned into when consumed
     self.result_item = nil
 
-    -- Ball of Junk inventory
-    self.inventory = inventory or DarkInventory()
 end
 
 function item:onWorldUse()
@@ -47,6 +48,13 @@ function item:onToss()
         end
 
         if dropped then
+            for k,storage in pairs(Game.inventory:getDarkInventory().storages) do
+                if storage.id ~= "key_items" and storage.id ~= "storage" then
+                    for i = 1, storage.max do
+                        storage[i] = nil
+                    end
+                end
+            end
             Game.inventory:removeItem(self)
 
             Assets.playSound("bageldefeat")
@@ -60,26 +68,31 @@ function item:onToss()
     return false
 end
 
-function item:convertToDark(inventory)
-    for k,storage in pairs(self.inventory.storages) do
-        for i = 1, storage.max do
-            if storage[i] then
-                if not inventory:addItemTo(storage.id, i, storage[i]) then
-                    inventory:addItem(storage[i])
-                end
-            end
+function item:onCheck()
+    Game.world:startCutscene(function(cutscene)
+        cutscene:text("* \""..self:getName().."\" - "..self:getCheck())
+
+        local comment
+
+        if Game.inventory:getDarkInventory():hasItem("dark_candy") then
+            comment = "* It smells like scratch'n'sniff marshmallow stickers."
         end
+
+        comment = Kristal.callEvent(KRISTAL_EVENT.onJunkCheck, self, comment) or comment
+
+        if comment then
+            cutscene:text(comment)
+        end
+    end)
+end
+
+function item:getCheck()
+    local check = super.getCheck(self)
+    if Game.chapter == 1 then
+        check = "A small ball\nof accumulated things."
     end
-    return true
-end
 
-function item:onSave(data)
-    data.inventory = self.inventory:save()
-end
-
-function item:onLoad(data)
-    self.inventory = DarkInventory()
-    self.inventory:load(data.inventory)
+    return check
 end
 
 return item

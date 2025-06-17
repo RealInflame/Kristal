@@ -1,7 +1,7 @@
 local item, super = Class(Item, "revivedust")
 
 function item:init()
-    super:init(self)
+    super.init(self)
 
     -- Display name
     self.name = "ReviveDust"
@@ -60,8 +60,8 @@ end
 
 function item:onBattleUse(user, target)
     for _,battler in ipairs(Game.battle.party) do
-        if battler.chara.health <= 0 then
-            battler:heal(math.abs(battler.chara.health) + math.ceil(battler.chara:getStat("health") / 4))
+        if battler.chara:getHealth() <= 0 then
+            battler:heal(math.abs(battler.chara:getHealth()) + math.ceil(battler.chara:getStat("health") / 4))
         else
             battler:heal(10)
         end

@@ -1,3 +1,7 @@
+--- All types of character in the overworld inherit from the `Character` class. \
+--- This class is not to be confused with the psuedo-event [`NPC`](lua://NPC.init) that is used for characters placed in the overworld.
+---@class Character : Object
+---@overload fun(actor: string|Actor, x?: number, y?: number) : Character
 local Character, super = Class(Object)
 
 function Character:init(actor, x, y)
@@ -5,10 +9,13 @@ function Character:init(actor, x, y)
         actor = Registry.createActor(actor)
     end
 
-    super:init(self, x, y, actor:getSize())
+    super.init(self, x, y, actor:getSize())
 
     self.is_player = false
     self.is_follower = false
+
+    -- The party member id represented by this character
+    self.party = nil
 
     self.facing = "down"
 
@@ -28,11 +35,18 @@ function Character:init(actor, x, y)
 
     self.spin_timer = 0
     self.spin_speed = 0
+
+    self.alert_timer = 0
+    self.alert_icon = nil
+    self.alert_callback = nil
 end
 
 function Character:getDebugInfo()
-    local info = super:getDebugInfo(self)
+    local info = super.getDebugInfo(self)
     table.insert(info, "Actor: " .. self.actor.name)
+    if self.party then
+        table.insert(info, "Party Member: " .. self.party)
+    end
     table.insert(info, "Noclip: " .. (self.noclip and "True" or "False"))
     return info
 end
@@ -62,6 +76,10 @@ function Character:getFlag(flag, default)
 end
 
 function Character:getPartyMember()
+    if self.party then
+        return Game:getPartyMember(self.party)
+    end
+
     for _,party in pairs(Game.party_data) do
         local actor = party:getActor()
         if actor and actor.id == self.actor.id then
@@ -93,6 +111,8 @@ function Character:setActor(actor)
     self:addChild(self.sprite)
 end
 
+--- Makes the character face in the direction specified by `dir`.
+---@param dir string The direction the character should face. Must be "up", "down", "left", or "right".
 function Character:setFacing(dir)
     self.facing = dir
     self.sprite:setFacing(dir)
@@ -228,19 +248,35 @@ function Character:onFootstep(num)
     if self.world and self.world.map then
         self.world.map:onFootstep(self, num)
     end
-    Kristal.callEvent("onFootstep", self, num)
+    Kristal.callEvent(KRISTAL_EVENT.onFootstep, self, num)
 end
 
-function Character:walkTo(x, y, time, facing, keep_facing, ease)
+--- Walks this character to a new `x` and `y` over `time` seconds.
+---@overload fun(self: Character, marker: string, time?: number, facing?: string, keep_facing?: boolean, after?: fun())
+---@param x             number                  The new `x` value to approach.
+---@param y             number                  The new `y` value to approach.
+---@param marker        string                  A map marker whose position the object should approach.
+---@param time?         number                  The amount of time, in seconds, that the slide should take. (Defaults to 1 second)
+---@param facing?       string                  The direction the character should face when they finish their walk. If `keep_facing` is `true`, they will instead face way immediately.
+---@param keep_facing?  boolean                 If `true`, the facing direction of the character will be preserved. Otherwise, they will face the direction they are walking. (Defaults to `false`)
+---@param after?        fun(chara: Character)   A callback function that is run after the character has finished walking.
+---@return boolean success Whether the walking will occur. False if the character's current position is already at the specified position, and true otherwise.
+function Character:walkTo(x, y, time, facing, keep_facing, ease, after)
     if type(x) == "string" then
+        after = ease
         ease = keep_facing
+        ---@diagnostic disable-next-line: cast-local-type
         keep_facing = facing
+        ---@diagnostic disable-next-line: cast-local-type
         facing = time
         time = y
         x, y = self.world.map:getMarker(x)
     end
 
-    if self:slideTo(x, y, time, ease, function() if facing then self:setFacing(facing) end end) then
+    if self:slideTo(x, y, time, ease, function()
+        if facing then self:setFacing(facing) end
+        if after then after(self) end
+    end) then
         if facing and keep_facing then
             self:setFacing(facing)
         end
@@ -252,15 +288,32 @@ function Character:walkTo(x, y, time, facing, keep_facing, ease)
     return false
 end
 
-function Character:walkToSpeed(x, y, speed, facing, keep_facing)
+--- Walks this character to a new `x` and `y` at `speed` pixels per frame.
+---@overload fun(self: Character, marker: string, speed?: number, facing?: string, keep_facing?: boolean, after?: fun())
+---@param x             number                  The new `x` value to approach.
+---@param y             number                  The new `y` value to approach.
+---@param marker        string                  A map marker whose position the object should approach.
+---@param speed?        number                  The amount that the object's `x` and `y` should approach the specified position, in pixels per frame at 30FPS. (Defaults to `4`)
+---@param facing?       string                  The direction the character should face when they finish their walk. If `keep_facing` is `true`, they will instead face way immediately.
+---@param keep_facing?  boolean                 If `true`, the facing direction of the character will be preserved. Otherwise, they will face the direction they are walking. (Defaults to `false`)
+---@param after?        fun(chara: Character)   A callback function that is run after the character has finished walking.
+---@return boolean success Whether the walking will occur. False if the character's current position is already at the specified position, and true otherwise.
+function Character:walkToSpeed(x, y, speed, facing, keep_facing, after)
     if type(x) == "string" then
+        ---@diagnostic disable-next-line: cast-local-type
+        after = keep_facing
+        ---@diagnostic disable-next-line: cast-local-type
         keep_facing = facing
+        ---@diagnostic disable-next-line: cast-local-type
         facing = speed
         speed = y
         x, y = self.world.map:getMarker(x)
     end
 
-    if self:slideToSpeed(x, y, speed, function() if facing then self:setFacing(facing) end end) then
+    if self:slideToSpeed(x, y, speed, function()
+        if facing then self:setFacing(facing) end
+        if after then after(self) end
+    end) then
         if facing and keep_facing then
             self:setFacing(facing)
         end
@@ -272,6 +325,21 @@ function Character:walkToSpeed(x, y, speed, facing, keep_facing)
     return false
 end
 
+--- Walks the character along a given path. 
+---@param path      string|table        The name of a path in the current map file, or a table defining several points (as additional tables) that constitute a path.
+---@param options   table               A table defining additional properties to control the walk.
+---|"facing" # The direction the character should face when they finish their walk. If `keep_facing` is `true`, they will instead face way immediately.
+---|"keep_facing" # If `true`, the facing direction of the character will be preserved. Otherwise, they will face the direction they are walking. (Defaults to `false`)
+---| "time" # The amount of time, in seconds, that the object should take to travel along the full path.
+---| "speed" # The speed at which the object should travel along the path, in pixels per frame at 30FPS.
+---| "ease" # The ease type to use when travelling along the path. Unused if `speed` is specified instead of `time`. (Defaults to "linear")
+---| "after" # A function that will be called when the end of the path is reached. Receives no arguments.
+---| "relative" # Whether the path should be relative to the object's current position, or simply set its position directly.
+---| "loop" # Whether the path should loop back to the first point when reaching the end, or if it should stop.
+---| "reverse" # If true, reverse all of the points on the path.
+---| "skip" # A number defining how many points of the path to skip.
+---| "snap" # Whether the object's position should immediately "snap" to the first point, or if its initial position should be counted as a point on the path.
+---@return nil
 function Character:walkPath(path, options)
     options = options or {}
 
@@ -303,9 +371,59 @@ function Character:doWalkToStep(x, y, keep_facing)
     self.noclip = was_noclip
 end
 
-function Character:shake(x, y)
-    self.sprite.shake_x = x or 0
-    self.sprite.shake_y = y or 0
+function Character:shakeSelf(x, y, friction, delay)
+    super.shake(self, x, y, friction, delay)
+end
+
+function Character:stopShakeSelf()
+    super.stopShake(self)
+end
+
+function Character:shake(x, y, friction, delay)
+    if self.sprite then
+        self.sprite:shake(x, y, friction, delay)
+    else
+        self:shakeSelf(x, y, friction, delay)
+    end
+end
+
+function Character:stopShake()
+    if self.sprite then
+        self.sprite:stopShake()
+    else
+        self:stopShakeSelf()
+    end
+end
+
+function Character:flash(sprite, offset_x, offset_y, layer)
+    local sprite_to_use = sprite or self.sprite
+    return sprite_to_use:flash(offset_x, offset_y, layer)
+end
+
+--- Creates an alert bubble (tiny !) above this character.
+---@param duration?     number  The number of frames to show the bubble for. (Defaults to `20`)
+---@param options?      table   A table defining additional properties to control the bubble.
+---|"play_sound"    # Whether the alert sound will be played. (Defaults to `true`)
+---|"sprite"        # The sprite to use for the alert bubble. (Defaults to `"effects/alert"`)
+---|"offset_x"      # The x-offset of the icon.
+---|"offset_y"      # The y-offset of the icon.
+---|"layer"         # The layer to put the icon on. (Defaults to `100`)
+---|"callback"      # A callback that is run when the alert finishes.
+---@return Sprite
+function Character:alert(duration, options)
+    options = options or {}
+    if options["play_sound"] == nil or options["play_sound"] then
+        Assets.stopAndPlaySound("alert")
+    end
+    local sprite_to_use = options["sprite"] or "effects/alert"
+    self.alert_timer = duration and duration*30 or 20
+    if self.alert_icon then self.alert_icon:remove() end
+    self.alert_icon = Sprite(sprite_to_use, (self.width/2)+(options["offset_x"] or 0), options["offset_y"] or 0)
+    self.alert_icon:setOrigin(0.5, 1)
+    self.alert_icon.layer = options["layer"] or 100
+    self:addChild(self.alert_icon)
+    self.alert_callback = options["callback"]
+    return self.alert_icon
 end
 
 function Character:setSprite(sprite)
@@ -316,6 +434,11 @@ function Character:setCustomSprite(sprite, ox, oy)
     self.sprite:setCustomSprite(sprite, ox, oy)
 end
 
+function Character:setWalkSprite(sprite)
+    self.sprite:setWalkSprite(sprite)
+end
+
+--- Resetss the character's to their default animation or sprite.
 function Character:resetSprite()
     self.sprite:resetSprite()
 end
@@ -328,6 +451,15 @@ function Character:play(speed, loop, reset, on_finished)
     self.sprite:play(speed, loop, reset, on_finished)
 end
 
+--- Moves the character to a new position with a jumping arc motion.
+---@overload fun(self: Character, marker:string, speed?: number, time?: number, jump_sprite?: string, land_sprite?: string)
+---@param x             number  The x-coordinate to move the character to.
+---@param y             number  The y-cooridinate to move the character to.
+---@param marker        string  The name of a marker in the map to move the character to.
+---@param speed?        number  The speed, as upwards velocity of the character when they start the jump. Defaults to `0`.
+---@param time?         number  The time, in seconds, that the jump will take. Defaults to 1 second.
+---@param jump_sprite?  string  The sprite that will be used whilst the character is in midair.
+---@param land_sprite?  string  The sprite that will be used just as the character leaves the ground and as they land.
 function Character:jumpTo(x, y, speed, time, jump_sprite, land_sprite)
     if type(x) == "string" then
         land_sprite = jump_sprite
@@ -462,11 +594,21 @@ function Character:statusMessage(type, arg, color, kill)
     return percent
 end
 
+function Character:recruitMessage(type, color)
+    local x, y = self:getRelativePos(0, self.height, self.world)
+
+    local message = RecruitMessage(type, x, y - 40, color)
+    message.layer = WORLD_LAYERS["below_ui"]
+    self.world:addChild(message)
+
+    return message
+end
+
 function Character:convertToFollower(index, save)
     local follower = Follower(self.actor, self.x, self.y)
     follower.layer = self.layer
     follower:setFacing(self.facing)
-    self.world:spawnFollower(follower, {index = index})
+    self.world:spawnFollower(follower, {index = index, party = self.party})
     if save then
         Game:addFollower(follower, index)
     end
@@ -475,7 +617,7 @@ function Character:convertToFollower(index, save)
 end
 
 function Character:convertToPlayer()
-    self.world:spawnPlayer(self.x, self.y, self.actor)
+    self.world:spawnPlayer(self.x, self.y, self.actor, self.party)
     local player = self.world.player
     player:setLayer(self.layer)
     player:setFacing(self.facing)
@@ -486,6 +628,7 @@ end
 function Character:convertToNPC(properties)
     local npc = NPC(self.actor, self.x, self.y, properties)
     npc.layer = self.layer
+    npc.party = self.party
     npc:setFacing(self.facing)
     self.world:addChild(npc)
     self:remove()
@@ -495,6 +638,7 @@ end
 function Character:convertToCharacter()
     local character = Character(self.actor, self.x, self.y)
     character.layer = self.layer
+    character.party = self.party
     character:setFacing(self.facing)
     self.world:addChild(character)
     self:remove()
@@ -504,6 +648,7 @@ end
 function Character:convertToEnemy(properties)
     local enemy = ChaserEnemy(self.actor, self.x, self.y, properties)
     enemy.layer = self.layer
+    enemy.party = self.party
     enemy:setFacing(self.facing)
     self.world:addChild(enemy)
     self:remove()
@@ -561,15 +706,29 @@ function Character:update()
         self.spin_timer = 0
     end
 
-    super:update(self)
+    if self.alert_timer > 0 then
+        self.alert_timer = Utils.approach(self.alert_timer, 0, DTMULT)
+        if self.alert_timer == 0 then
+            self.alert_icon:remove()
+            self.alert_icon = nil
+            if self.alert_callback then
+                self.alert_callback()
+                self.alert_callback = nil
+            end
+        end
+    end
+
+    super.update(self)
 end
 
+--- Makes the character start spinning.
+---@param speed number  The spin speed to set on the character. Negative numbers = anticlockwise, positive numbers = clockwise. Higher value = slower spin.
 function Character:spin(speed)
     self.spin_speed = speed
 end
 
 function Character:draw()
-    super:draw(self)
+    super.draw(self)
 
     self.actor:onWorldDraw(self)
 

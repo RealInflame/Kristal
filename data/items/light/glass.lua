@@ -1,7 +1,7 @@
 local item, super = Class(Item, "light/glass")
 
 function item:init()
-    super:init(self)
+    super.init(self)
 
     -- Display name
     self.name = "Glass"
@@ -11,6 +11,9 @@ function item:init()
     -- Whether this item is for the light world
     self.light = true
 
+    -- Item description text (unused by light items outside of debug menu)
+    self.description = "A shard of glass."
+
     -- Where this item can be used (world, battle, all, or none)
     self.usable_in = "all"
     -- Item this item will get turned into when consumed
@@ -18,7 +21,7 @@ function item:init()
 end
 
 function item:onWorldUse()
-    if Kristal.callEvent("onShadowCrystal", self, true) then
+    if Kristal.callEvent(KRISTAL_EVENT.onShadowCrystal, self, true) then
         return
     elseif not self:getFlag("used_lw_no_party") and #Game.party == 1 and #Game.temp_followers == 0 then
         self:setFlag("used_lw_no_party", true)

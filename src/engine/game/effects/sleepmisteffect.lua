@@ -1,7 +1,9 @@
+---@class SleepMistEffect : Object
+---@overload fun(...) : SleepMistEffect
 local SleepMistEffect, super = Class(Object)
 
 function SleepMistEffect:init(x, y, success)
-    super:init(self, x, y)
+    super.init(self, x, y)
 
     self.texture = Assets.getTexture("effects/icespell/mist")
 
@@ -17,7 +19,7 @@ function SleepMistEffect:update()
         self:remove()
     end
 
-    super:update(self)
+    super.update(self)
 end
 
 function SleepMistEffect:draw()
@@ -25,11 +27,11 @@ function SleepMistEffect:draw()
     local x, y = math.sin(self.siner / 6) * amp, (math.cos(self.siner / 6) * amp) / 2
 
     local r,g,b,a = self:getDrawColor()
-    love.graphics.setColor(r, g, b, a * 0.8)
-    love.graphics.draw(self.texture, x, y, 0, 3, 2, self.texture:getWidth()/2, self.texture:getHeight()/2)
-    love.graphics.draw(self.texture, -x, -y, 0, 3, 2, self.texture:getWidth()/2, self.texture:getHeight()/2)
+    Draw.setColor(r, g, b, a * 0.8)
+    Draw.draw(self.texture, x, y, 0, 3, 2, self.texture:getWidth()/2, self.texture:getHeight()/2)
+    Draw.draw(self.texture, -x, -y, 0, 3, 2, self.texture:getWidth()/2, self.texture:getHeight()/2)
 
-    super:draw(self)
+    super.draw(self)
 end
 
 return SleepMistEffect

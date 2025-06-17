@@ -1,7 +1,7 @@
 local item, super = Class(Item, "shadowcrystal")
 
 function item:init()
-    super:init(self)
+    super.init(self)
 
     -- Display name
     self.name = "ShadowCrystal"
@@ -52,7 +52,7 @@ function item:getCollected()
 end
 
 function item:getDescription()
-    local desc = super:getDescription(self)
+    local desc = super.getDescription(self)
     if self:getCollected() > 0 then
         desc = desc .. "\nYou have collected [" .. self:getCollected() .. "]."
     end
@@ -60,7 +60,7 @@ function item:getDescription()
 end
 
 function item:onWorldUse()
-    if Kristal.callEvent("onShadowCrystal", self, false) then
+    if Kristal.callEvent(KRISTAL_EVENT.onShadowCrystal, self, false) then
         return
     elseif not self:getFlag("used_none") then
         self:setFlag("used_none", true)

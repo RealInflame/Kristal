@@ -1,7 +1,7 @@
 local item, super = Class(Item, "mane_ax")
 
 function item:init()
-    super:init(self)
+    super.init(self)
 
     -- Display name
     self.name = "Mane Ax"
@@ -41,9 +41,7 @@ function item:init()
     self.bonus_icon = nil
 
     -- Equippable characters (default true for armors, false for weapons)
-    self.can_equip = {
-        susie = true,
-    }
+    self.can_equip = {}
 
     -- Character reactions
     self.reactions = {

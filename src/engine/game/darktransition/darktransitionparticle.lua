@@ -1,7 +1,9 @@
+---@class DarkTransitionParticle : Object
+---@overload fun(...) : DarkTransitionParticle
 local DarkTransitionParticle, super = Class(Object)
 
 function DarkTransitionParticle:init(x, y)
-    super:init(self, x, y)
+    super.init(self, x, y)
 
     self.vspeed = -2
     self.image_xscale = 2
@@ -23,15 +25,15 @@ function DarkTransitionParticle:update()
         self:remove()
     end
 
-    super:update(self)
+    super.update(self)
 end
 
 function DarkTransitionParticle:draw()
     love.graphics.setPointSize(2 * 2)
-    love.graphics.setColor(1, 1, 1, self.image_alpha)
+    Draw.setColor(1, 1, 1, self.image_alpha)
     love.graphics.points(0, 0)
 
-    super:draw(self)
+    super.draw(self)
 end
 
 return DarkTransitionParticle

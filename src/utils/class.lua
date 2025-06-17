@@ -3,11 +3,13 @@ MOD_SUBCLASSES = {}
 DEFAULT_CLASS_NAME_GETTER = function(k) return _G[k] end
 CLASS_NAME_GETTER = DEFAULT_CLASS_NAME_GETTER
 
+---@param o any
+---@diagnostic disable-next-line: lowercase-global
 function isClass(o)
     return type(o) == "table" and getmetatable(o) and true or false
 end
 
-return setmetatable({}, {__index=_Class, __call = function(_, include, id)
+return function(include, id)
     local o = {}
     if include then
         if type(include) == "string" then
@@ -36,6 +38,11 @@ return setmetatable({}, {__index=_Class, __call = function(_, include, id)
                 for _,c in ipairs(include) do
                     if c[k] then
                         if a == t then
+                            local info = debug.getinfo(2, "Sln")
+                            -- We can safely assume that by the time anything using
+                            -- super: gets made, Kristal.Console will already exist.
+                            Kristal.Console:warn("Deprecated \"super:"..k.."(self)\" used, expected \"super."..k.."(self)\" ")
+                            Kristal.Console:warn(info.source .. ":"..info.currentline)
                             return c[k](...)
                         else
                             return c[k](a, ...)
@@ -61,4 +68,4 @@ return setmetatable({}, {__index=_Class, __call = function(_, include, id)
     class.__dont_include["__super"] = true
     class.__dont_include["__includers"] = true
     return class, super
-end})
+end

@@ -1,7 +1,7 @@
 local actor, super = Class(Actor, "noelle_lw")
 
 function actor:init()
-    super:init(self)
+    super.init(self)
 
     -- Display name (optional)
     self.name = "Noelle"
@@ -12,6 +12,10 @@ function actor:init()
 
     -- Hitbox for this actor in the overworld (optional, uses width and height by default)
     self.hitbox = {2, 33, 19, 14}
+
+    -- A table that defines where the Soul should be placed on this actor if they are a player.
+    -- First value is x, second value is y.
+    self.soul_offset = {11.5, 28}
 
     -- Color for this actor used in outline areas (optional, defaults to red)
     self.color = {1, 1, 0}
@@ -34,8 +38,19 @@ function actor:init()
     -- Table of sprite animations
     self.animations = {}
 
+    -- Tables of sprites to change into in mirrors
+    self.mirror_sprites = {
+        ["walk/down"] = "walk/up",
+        ["walk/up"] = "walk/down",
+        ["walk/left"] = "walk/left",
+        ["walk/right"] = "walk/right",
+    }
+
     -- Table of sprite offsets (indexed by sprite name)
-    self.offsets = {}
+    self.offsets = {
+        -- Cutscene offsets
+        ["shocked"] = {0, 0},
+    }
 end
 
 return actor

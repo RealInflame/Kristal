@@ -1,6 +1,8 @@
 {    
     "enableStorage": false,          // Extra 48-slot item storage
+    "enableRecruits": false,         // Enable recruit messages and menu
     "smallSaveMenu": true,           // Single-file save menu with no storage/recruits options
+    "lessEquipments": true,          // Reduces the amount of available weapons and armor slots in the inventory
 
     "partyActions": false,           // Whether X-Actions appear in spell menu by default
 
@@ -12,6 +14,7 @@
 
     "oldTensionBar": true,           // Syle of TP bar
     "oldUIPositions": true,          // Old positions of various UI elements
+    "oldGameOver": true,             // The game over screen used in chapter 1
 
     "speechBubble": "round",         // Default enemy speech bubble style
 
@@ -22,7 +25,8 @@
     "enemyBarPercentages": false,    // HP / Mercy bar percentages
 
     "targetSystem": true,            // Whether the target system should be used or not
-
+    "soulInvBetweenWaves": true,     // Whether the soul invulnerability will carry between waves in battles
+    
     "darkCurrency": "Dark Dollars",  // Full currency name for the Dark World
     "darkCurrencyShort": "D$",       // Short currency name for the Dark World
 
@@ -30,5 +34,10 @@
     "lightCurrencyShort": "$",       // Short currency name for the Light World
     "tpName": "TP",                  // Name of Tension Points in battles
 
-    "pushBlockInputLock": true       // Whether to lock the player's input when pushing a block
+    "prioritySpareableText": true,   // Whether enemies' spareable text should be prioritized over their tired / low-health text
+
+    "pushBlockInputLock": true,      // Whether to lock the player's input when pushing a block
+    "keepTensionAfterBattle": false, // Whether TP should be kept after battle instead of reset
+    "overworldSpells": true,         // Whether spells should be usable in the overworld
+    "damageUnderflowFix": true       // When disabled, negative enemy damage heals the enemy and displays a negative damage number
 }

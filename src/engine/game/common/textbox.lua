@@ -1,3 +1,5 @@
+---@class Textbox : Object
+---@overload fun(...) : Textbox
 local Textbox, super = Class(Object)
 
 Textbox.REACTION_X = {
@@ -33,7 +35,7 @@ Textbox.REACTION_Y_BATTLE = {
 }
 
 function Textbox:init(x, y, width, height, default_font, default_font_size, battle_box)
-    super:init(self, x, y, width, height)
+    super.init(self, x, y, width, height)
 
     self.box = UIBox(0, 0, width, height)
     self.box.layer = -1
@@ -73,10 +75,17 @@ function Textbox:init(x, y, width, height, default_font, default_font_size, batt
     self.font = self.default_font
     self.font_size = self.default_font_size
 
-    self.face = Sprite()
-    self.face.path = "face"
-    self.face:setPosition(self.face_x, self.face_y)
+    self.face = Sprite(nil, self.face_x, self.face_y, nil, nil, "face")
     self.face:setScale(2, 2)
+    self.face.getDebugOptions = function(self2, context)
+        context = super.getDebugOptions(self2, context)
+        if Kristal.DebugSystem then
+            context:addMenuItem("Change", "Change this portrait to a different one", function()
+                Kristal.DebugSystem:setState("FACES", self)
+            end)
+        end
+        return context
+    end
     self:addChild(self.face)
 
     -- Added text width for autowrapping
@@ -106,12 +115,60 @@ function Textbox:init(x, y, width, height, default_font, default_font_size, batt
     end)
 
     self.text:registerCommand("react", function(text, node, dry)
-        local react_data = tonumber(node.arguments[1]) and self.reactions[tonumber(node.arguments[1])] or self.reactions[node.arguments[1]]
+        local react_data
+        if #node.arguments > 1 then
+            react_data = {
+                text = node.arguments[1],
+                x = tonumber(node.arguments[2]) or (self.battle_box and self.REACTION_X_BATTLE[node.arguments[2]] or self.REACTION_X[node.arguments[2]]),
+                y = tonumber(node.arguments[3]) or (self.battle_box and self.REACTION_Y_BATTLE[node.arguments[3]] or self.REACTION_Y[node.arguments[3]]),
+                face = node.arguments[4],
+                actor = node.arguments[5] and Registry.createActor(node.arguments[5]),
+            }
+        else
+            react_data = tonumber(node.arguments[1]) and self.reactions[tonumber(node.arguments[1])] or self.reactions[node.arguments[1]]
+        end
         local reaction = SmallFaceText(react_data.text, react_data.x, react_data.y, react_data.face, react_data.actor)
         reaction.layer = 0.1 + (#self.reaction_instances) * 0.01
         self:addChild(reaction)
         table.insert(self.reaction_instances, reaction)
     end, {instant = false})
+
+    self.minifaces = {}
+    self.miniface_path = "face/mini"
+
+    self.text:registerCommand("miniface", function(text, node, dry)
+        local ox = tonumber(node.arguments[2]) or 0
+        local oy = tonumber(node.arguments[3]) or 0
+        if self.actor then
+            local actor_ox, actor_oy = self.actor:getMinifaceOffset()
+            ox = actor_ox
+            oy = actor_oy
+        end
+        local x_scale = tonumber(node.arguments[4]) or 2
+        local y_scale = tonumber(node.arguments[5]) or 2
+        local speed = tonumber(node.arguments[6]) or (4/30)
+        local y = self.text.state.current_y
+        if (not dry) then
+            local miniface = Sprite(nil, 0 + ox, y + oy)
+            miniface:setScale(x_scale, y_scale)
+            miniface:setSprite(self.miniface_path.. "/" ..node.arguments[1])
+            miniface:play(speed)
+            if #self.minifaces > 0 then
+                local last_face = self.minifaces[#self.minifaces]
+                last_face:stop()
+            end
+            self:addChild(miniface)
+            table.insert(self.minifaces, miniface)
+            if self.actor and self.actor:getMiniface() then
+                self.miniface_path = self.actor:getMiniface()
+            else
+                self.miniface_path = "face/mini"
+            end
+            self.text.state.indent_mode = true
+            self.text.state.indent_length = miniface.width * miniface.scale_x + 15
+            self.text.state.current_x = self.text.state.indent_length + self.text.state.spacing
+        end
+    end)
 
     self.advance_callback = nil
 end
@@ -119,8 +176,11 @@ end
 function Textbox:update()
     if not self:isTyping() then
         self.face:stop()
+        for _,miniface in ipairs(self.minifaces) do
+            miniface:stop()
+        end
     end
-    super:update(self)
+    super.update(self)
 end
 
 function Textbox:advance()
@@ -144,11 +204,18 @@ function Textbox:setActor(actor)
         actor = Registry.createActor(actor)
     end
     self.actor = actor
+    self.text.actor = actor
 
     if self.actor and self.actor:getPortraitPath() then
         self.face.path = self.actor:getPortraitPath()
     else
         self.face.path = "face"
+    end
+
+    if self.actor and self.actor:getMiniface() then
+        self.miniface_path = self.actor:getMiniface()
+    else
+        self.miniface_path = "face/mini"
     end
 end
 
@@ -252,6 +319,16 @@ function Textbox:setText(text, callback)
                 text[i] = "[voice:"..self.actor:getVoice().."]"..line
             end
         end
+        if self.actor:getFont() then
+            if type(text) ~= "table" then
+                text = {text}
+            else
+                text = Utils.copy(text)
+            end
+            for i,line in ipairs(text) do
+                text[i] = "[font:"..self.actor:getFont().."]"..line
+            end
+        end
         if self.actor:getIndentString() then
             self.text.indent_string = self.actor:getIndentString()
         end
@@ -289,7 +366,7 @@ function Textbox:getDebugRectangle()
         local bw, bh = self:getBorder()
         return {-bw, -bh, self.width + bw*2, self.height + bh*2}
     end
-    return super:getDebugRectangle(self)
+    return super.getDebugRectangle(self)
 end
 
 function Textbox:isTyping()

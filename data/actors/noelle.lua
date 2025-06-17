@@ -1,7 +1,7 @@
 local actor, super = Class(Actor, "noelle")
 
 function actor:init()
-    super:init(self)
+    super.init(self)
 
     -- Display name (optional)
     self.name = "Noelle"
@@ -12,6 +12,10 @@ function actor:init()
 
     -- Hitbox for this actor in the overworld (optional, uses width and height by default)
     self.hitbox = {2, 33, 19, 14}
+
+    -- A table that defines where the Soul should be placed on this actor if they are a player.
+    -- First value is x, second value is y.
+    self.soul_offset = {11.5, 28}
 
     -- Color for this actor used in outline areas (optional, defaults to red)
     self.color = {1, 1, 0}
@@ -58,6 +62,58 @@ function actor:init()
 
         -- Cutscene animations
         ["laugh"]               = {"laugh", 4/30, true},
+    }
+
+    -- Alternate animations to use for Noelle weird mode (false to disable the animation)
+    self.animations_alt = {
+        -- Battle animations
+        ["battle/idle"]         = {"battle_alt/idle", 0.2, true},
+
+        ["battle/attack"]       = {"battle/spell", 1/15, false, next="battle/idle"},
+
+        ["battle/attack_ready"] = {"battle/idle", 0.2, true},
+        ["battle/defend_ready"] = {"battle_alt/defend", 1/15, false},
+
+        ["battle/hurt"]         = {"battle_alt/hurt", 1/15, false, temp=true, duration=0.5},
+
+        ["battle/transition"]   = {"battle_alt/intro", 1/15, false},
+        ["battle/victory"]      = {"battle_alt/pray", 5/30, true},
+    }
+
+    -- Tables of sprites to change into in mirrors
+    self.mirror_sprites = {
+        ["walk/down"] = "walk/up",
+        ["walk/up"] = "walk/down",
+        ["walk/left"] = "walk/left",
+        ["walk/right"] = "walk/right",
+
+        ["walk_happy/down"] = "walk_happy/up",
+        ["walk_happy/up"] = "walk_happy/down",
+        ["walk_happy/left"] = "walk_happy/left",
+        ["walk_happy/right"] = "walk_happy/right",
+
+        ["walk_blush/down"] = "walk_blush/up",
+        ["walk_blush/up"] = "walk_blush/down",
+        ["walk_blush/left"] = "walk_blush/left",
+        ["walk_blush/right"] = "walk_blush/right",
+
+        ["walk_look_up/down"] = "walk_look_up/up",
+        ["walk_look_up/up"] = "walk_look_up/down",
+        ["walk_look_up/left"] = "walk_look_up/left",
+        ["walk_look_up/right"] = "walk_look_up/right",
+
+        ["walk_sad/down"] = "walk_sad/up",
+        ["walk_sad/up"] = "walk_sad/down",
+        ["walk_sad/left"] = "walk_sad/left",
+        ["walk_sad/right"] = "walk_sad/right",
+
+        ["walk_smile/down"] = "walk_smile/up",
+        ["walk_smile/up"] = "walk_smile/down",
+        ["walk_smile/left"] = "walk_smile/left",
+        ["walk_smile/right"] = "walk_smile/right",
+
+        ["walk_mad/left"] = "walk_mad/left",
+        ["walk_mad/right"] = "walk_mad/right",
     }
 
     -- Table of sprite offsets (indexed by sprite name)
@@ -110,7 +166,7 @@ function actor:init()
         ["battle/spell"] = {-3, 0},
         ["battle/spellready"] = {0, 0},
         ["battle/item"] = {-2, 0},
-        ["battle/itemready"] = {-2, 0},
+        ["battle/itemready"] = {0, 0},
         ["battle/defend"] = {-9, 0},
 
         ["battle/defeat"] = {0, 0},
@@ -118,6 +174,14 @@ function actor:init()
 
         ["battle/intro"] = {-11, -7},
         ["battle/victory"] = {0, 0},
+
+        ["battle_alt/idle"] = {-3, 0},
+        ["battle_alt/defend"] = {-3, -6},
+        ["battle_alt/hurt"] = {-3, 0},
+        ["battle_alt/intro"] = {-11, -7},
+        ["battle_alt/float"] = {-11, -7},
+        ["battle_alt/pray"] = {-3, 0},
+        ["battle_alt/spell_special"] = {-5, -1},
 
         -- Cutscene offsets
         ["blush"] = {0, 0},
@@ -153,6 +217,28 @@ function actor:init()
         ["head_lowered_look_left"] = {0, 0},
         ["head_lowered_look_right"] = {0, 0},
     }
+end
+
+function actor:getAnimation(anim)
+    -- If the weird route flag is set and an alt animation is defined, use it instead
+    if Game:getPartyMember("noelle"):getFlag("weird", false) and self.animations_alt[anim] ~= nil then
+        return self.animations_alt[anim] or nil
+    else
+        return super.getAnimation(self, anim)
+    end
+end
+
+function actor:onSetAnimation(sprite, anim, keep_anim)
+    if anim[1] == "battle_alt/pray" then
+        local background = SnowglobeEffect(0, 0, false)
+        local foreground = SnowglobeEffect(0, 0, true)
+        sprite.parent:addChild(background)
+        sprite.parent:addChild(foreground)
+        background.layer = sprite.layer - 1
+        foreground.layer = sprite.layer + 1
+        background:setScale(0.5)
+        foreground:setScale(0.5)
+    end
 end
 
 return actor

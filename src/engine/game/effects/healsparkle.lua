@@ -1,7 +1,9 @@
+---@class HealSparkle : Sprite
+---@overload fun(...) : HealSparkle
 local HealSparkle, super = Class(Sprite)
 
 function HealSparkle:init(x, y)
-    super:init(self, "effects/spare/star", x, y)
+    super.init(self, "effects/spare/star", x, y)
 
     self:play(4/30, true)
 
@@ -24,7 +26,7 @@ end
 function HealSparkle:update()
     self.rotation = self.rotation + (math.rad(self.spin) * DTMULT)
 
-    super:update(self)
+    super.update(self)
 end
 
 return HealSparkle

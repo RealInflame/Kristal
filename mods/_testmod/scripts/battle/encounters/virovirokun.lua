@@ -1,7 +1,9 @@
+---@class Virovirokun : Encounter
+---@overload fun(...) : Virovirokun
 local Virovirokun, super = Class(Encounter)
 
 function Virovirokun:init()
-    super:init(self)
+    super.init(self)
 
     self.text = "* Virovirokun floated in!"
 
@@ -54,7 +56,7 @@ function Virovirokun:onGlowshardUse(item, user)
     end
     Game.inventory:removeItem(item)
     return {
-        "* "..user.chara:getName().." used the GLOWSHARD!",
+        "* " .. user.chara:getName() .. " used the GLOWSHARD!",
         lines,
         "* The GLOWSHARD disappeared!"
     }
@@ -67,7 +69,7 @@ function Virovirokun:update()
         end
     end
 
-    super:update(self)
+    super.update(self)
 end
 
 return Virovirokun

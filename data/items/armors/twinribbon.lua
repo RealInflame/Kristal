@@ -1,7 +1,7 @@
 local item, super = Class(Item, "twinribbon")
 
 function item:init()
-    super:init(self)
+    super.init(self)
 
     -- Display name
     self.name = "TwinRibbon"
@@ -34,7 +34,7 @@ function item:init()
 
     -- Equip bonuses (for weapons and armor)
     self.bonuses = {
-        defense = 1,
+        defense = 3,
 
         graze_size = 0.2,
     }

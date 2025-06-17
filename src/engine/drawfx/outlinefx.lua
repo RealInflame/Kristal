@@ -1,7 +1,9 @@
+---@class OutlineFX : FXBase
+---@overload fun(...) : OutlineFX
 local OutlineFX, super = Class(FXBase)
 
 function OutlineFX:init(color, settings, priority)
-    super:init(self, priority or 0)
+    super.init(self, priority or 0)
 
     settings = settings or {}
 
@@ -22,7 +24,7 @@ function OutlineFX:getColor()
 end
 
 function OutlineFX:isActive()
-    return super:isActive(self) and self.amount > 0
+    return super.isActive(self) and self.amount > 0
 end
 
 function OutlineFX:draw(texture)
@@ -76,9 +78,9 @@ function OutlineFX:draw(texture)
     Draw.popCanvas()
 
 
-    love.graphics.setColor(1, 1, 1, self.color[4])
+    Draw.setColor(1, 1, 1, self.color[4])
     Draw.drawCanvas(outline)
-    love.graphics.setColor(1, 1, 1, 1)
+    Draw.setColor(1, 1, 1, 1)
 
     -- Center
     if not self.cutout then

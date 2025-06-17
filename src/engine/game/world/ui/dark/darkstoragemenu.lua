@@ -1,7 +1,9 @@
+---@class DarkStorageMenu : Object
+---@overload fun(...) : DarkStorageMenu
 local DarkStorageMenu, super = Class(Object)
 
 function DarkStorageMenu:init(top_storage, bottom_storage)
-    super:init(self, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT)
+    super.init(self, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT)
 
     self:setParallax(0, 0)
 
@@ -78,7 +80,7 @@ function DarkStorageMenu:updateDescription()
 end
 
 function DarkStorageMenu:update()
-    if Input.pressed("left") then
+    if Input.pressed("left", true) then
         self.selected_x[self.list] = self.selected_x[self.list] - 1
         if self.selected_x[self.list] < 1 then
             self.selected_x[self.list] = 2
@@ -89,7 +91,7 @@ function DarkStorageMenu:update()
             end
         end
     end
-    if Input.pressed("right") then
+    if Input.pressed("right", true) then
         self.selected_x[self.list] = self.selected_x[self.list] + 1
         if self.selected_x[self.list] > 2 then
             self.selected_x[self.list] = 1
@@ -100,20 +102,20 @@ function DarkStorageMenu:update()
             end
         end
     end
-    if Input.pressed("up") then
+    if Input.pressed("up", true) then
         self.selected_y[self.list] = self.selected_y[self.list] - 1
         if self.selected_y[self.list] < 1 then
             self.selected_y[self.list] = 6
         end
     end
-    if Input.pressed("down") then
+    if Input.pressed("down", true) then
         self.selected_y[self.list] = self.selected_y[self.list] + 1
         if self.selected_y[self.list] > 6 then
             self.selected_y[self.list] = 1
         end
     end
     if self.state == "SELECT" then
-        if Input.pressed("confirm") then
+        if Input.pressed("confirm", false) then
             if self:getStorage(self.list).max < self:getSelectedIndex(self.list) then
                 self.ui_cant_select:stop()
                 self.ui_cant_select:play()
@@ -121,12 +123,12 @@ function DarkStorageMenu:update()
                 self.state = "SWAP"
                 self.list = 2
             end
-        elseif Input.pressed("cancel") then
+        elseif Input.pressed("cancel", false) then
             self:remove()
             Game.world:closeMenu()
         end
     elseif self.state == "SWAP" then
-        if Input.pressed("confirm") then
+        if Input.pressed("confirm", false) then
             if self:getStorage(self.list).max < self:getSelectedIndex(self.list) then
                 self.ui_cant_select:stop()
                 self.ui_cant_select:play()
@@ -142,7 +144,7 @@ function DarkStorageMenu:update()
                 self.state = "SELECT"
                 self.list = 1
             end
-        elseif Input.pressed("cancel") then
+        elseif Input.pressed("cancel", false) then
             self.state = "SELECT"
             self.list = 1
         end
@@ -158,7 +160,7 @@ function DarkStorageMenu:update()
     if (math.abs((self.heart_target_x - self.heart.x)) <= 2) then
         self.heart.x = self.heart_target_x
     end
-    if (math.abs((self.heart_target_y - self.heart.y)) <= 2)then
+    if (math.abs((self.heart_target_y - self.heart.y)) <= 2) then
         self.heart.y = self.heart_target_y
     end
     self.heart.x = self.heart.x + ((self.heart_target_x - self.heart.x) / 2) * DTMULT
@@ -167,10 +169,10 @@ end
 
 function DarkStorageMenu:draw()
     love.graphics.setLineWidth(4)
-    love.graphics.setColor(PALETTE["world_border"])
+    Draw.setColor(PALETTE["world_border"])
     love.graphics.rectangle("line", 42, 122, 557, 155)
     love.graphics.rectangle("line", 42, 277, 557, 152)
-    love.graphics.setColor(PALETTE["world_fill"])
+    Draw.setColor(PALETTE["world_fill"])
     love.graphics.rectangle("fill", 44, 124, 553, 151)
     love.graphics.rectangle("fill", 44, 279, 553, 148)
     love.graphics.setLineWidth(1)
@@ -178,7 +180,7 @@ function DarkStorageMenu:draw()
     self:drawStorage(1)
     self:drawStorage(2)
 
-    super:draw(self)
+    super.draw(self)
 end
 
 function DarkStorageMenu:drawStorage(list)
@@ -195,7 +197,7 @@ function DarkStorageMenu:drawStorage(list)
 
     love.graphics.setFont(self.font)
 
-    love.graphics.setColor(self.list == list and PALETTE["world_light_gray"] or PALETTE["world_dark_gray"])
+    Draw.setColor(self.list == list and PALETTE["world_light_gray"] or PALETTE["world_dark_gray"])
     love.graphics.print(storage.id == "items" and "POCKET" or storage.name, name_text_x, name_text_y)
 
     local max_pages = self:getMaxPages(list)
@@ -213,13 +215,13 @@ function DarkStorageMenu:drawStorage(list)
             local storage = Game.inventory:getStorage(self.storages[list])
             local item = Game.inventory:getItem(storage, item_index)
             if storage.max < item_index then
-                love.graphics.setColor(PALETTE["world_dark_gray"])
+                Draw.setColor(PALETTE["world_dark_gray"])
             elseif self.list ~= list and list ~= 1 then
-                love.graphics.setColor(PALETTE["world_gray"])
+                Draw.setColor(PALETTE["world_gray"])
             elseif self.selected_x[list] == i and self.selected_y[list] == j then
-                love.graphics.setColor(PALETTE["world_text_selected"])
+                Draw.setColor(PALETTE["world_text_selected"])
             else
-                love.graphics.setColor(PALETTE["world_text"])
+                Draw.setColor(PALETTE["world_text"])
             end
             if item then
                 love.graphics.print(item:getName(), x, y)
@@ -229,13 +231,13 @@ function DarkStorageMenu:drawStorage(list)
         end
     end
 
-    love.graphics.setColor(1, 1, 1, 1)
+    Draw.setColor(1, 1, 1, 1)
     if self.list == list and max_pages > 1 then
         local left_arrow_x, left_arrow_y = 32, self.arrow_y[list]
         local right_arrow_x, right_arrow_y = 592, self.arrow_y[list]
         local offset = Utils.round(math.sin(Kristal.getTime() * 5)) * 2
-        love.graphics.draw(self.arrow_left, left_arrow_x - offset, left_arrow_y, 0, 2, 2)
-        love.graphics.draw(self.arrow_right, right_arrow_x + offset, right_arrow_y, 0, 2, 2)
+        Draw.draw(self.arrow_left, left_arrow_x - offset, left_arrow_y, 0, 2, 2)
+        Draw.draw(self.arrow_right, right_arrow_x + offset, right_arrow_y, 0, 2, 2)
     end
 end
 

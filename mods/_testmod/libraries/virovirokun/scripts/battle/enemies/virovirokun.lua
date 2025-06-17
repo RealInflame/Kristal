@@ -1,7 +1,7 @@
 local Virovirokun, super = Class(EnemyBattler)
 
 function Virovirokun:init()
-    super:init(self)
+    super.init(self)
 
     self.name = "Virovirokun"
     self:setActor("virovirokun")
@@ -31,7 +31,7 @@ function Virovirokun:init()
         "* Virovirokun is beeping a\ncriminal tune."
     }
 
-    self.low_health_text = "* Virovirokun looks extra sick."
+    self.tired_text = "* Virovirokun looks extra sick."
 
     self:registerAct("TakeCare")
     self:registerAct("TakeCareX", "", "all")
@@ -80,7 +80,7 @@ function Virovirokun:onActStart(battler, name)
             ibattler:setActSprite(getSpriteAndOffset(ibattler.chara.id))
         end
     else
-        super:onActStart(self, battler, name)
+        super.onActStart(self, battler, name)
     end
 end
 
@@ -158,7 +158,7 @@ function Virovirokun:onAct(battler, name)
             return
         end
     end
-    return super:onAct(self, battler, name)
+    return super.onAct(self, battler, name)
 end
 
 function Virovirokun:getEnemyDialogue()

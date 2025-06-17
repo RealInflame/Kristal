@@ -1,7 +1,7 @@
 local spell, super = Class(Spell, "snowgrave")
 
 function spell:init()
-    super:init(self)
+    super.init(self)
 
     -- Display name
     self.name = "SnowGrave"
@@ -24,7 +24,7 @@ function spell:init()
 end
 
 function spell:getTPCost(chara)
-    local cost = super:getTPCost(self, chara)
+    local cost = super.getTPCost(self, chara)
     if chara and chara:checkWeapon("thornring") then
         cost = Utils.round(cost / 2)
     end
@@ -35,12 +35,16 @@ function spell:getTPCost(chara)
 end
 
 function spell:onCast(user, target)
-    local object = SnowGraveSpell(user, target)
-    object.damage = (user.chara:getStat("magic") * 40) + 600 --math.ceil(((user.chara:getStat("magic") * 40) + 600))
+    local object = SnowGraveSpell(user)
+    object.damage = self:getDamage(user, target)
     object.layer = BATTLE_LAYERS["above_ui"]
     Game.battle:addChild(object)
     --target[1]:hurt(object.damage, user)
     return false
+end
+
+function spell:getDamage(user, target)
+    return math.ceil((user.chara:getStat("magic") * 40) + 600)
 end
 
 return spell

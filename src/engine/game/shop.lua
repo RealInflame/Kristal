@@ -1,8 +1,99 @@
+--- The class which all Shops in Kristal use. \
+--- Shop files should be located in `scripts/shops`, and will use their filepath relative to this location as an id by default. \
+--- Either [`World:shopTransition()`](lua://World.shopTransition) or a [`Transition`](lua://Transition) event with the property `shop` defined can be used to enter shops. 
+---
+---@class Shop : Object
+---@overload fun(...) : Shop
+---
+---@field currency_text             string
+---
+---@field encounter_text            string
+---@field shop_text                 string
+---@field leaving_text              string
+---@field buy_menu_text             string
+---@field buy_confirmation_text     string
+---@field buy_refuse_text           string
+---@field buy_text                  string
+---@field buy_storage_text          string
+---@field buy_too_expensive_text    string
+---@field buy_no_space_text         string
+---@field sell_no_price_text        string
+---@field sell_menu_text            string
+---@field sell_nothing_text         string
+---@field sell_confirmation_text    string
+---@field sell_refuse_text          string
+---@field sell_text                 string
+---@field sell_no_storage_text      string
+---@field sell_everything_text      string
+---@field talk_text                 string
+---
+--- Defines the text shown when in each of the different SELL submenus. \
+--- The keys `items`, `weapons`, `armors`, and `storage` can be defined for this table.
+---@field sell_options_text         { items: string, weapons: string, armors: string, storage: string }
+---
+--- Whether the shop should hide the text showing your remaining storage text (Defaults to `false`)
+---@field hide_storage_text         boolean
+---
+--- Whether item prices should be hidden (Defaults to `false`)
+---@field hide_price                boolean
+---
+--- A table defining the options that will be displayed when on the main menu of the shop (State `MAINMENU`). \
+--- Each entry in this table should be a two string table, defining the name of the option first, \
+--- followed by the name of the [state](lua://shopstate) that the stop should enter when the option is selected.
+---@field menu_options              table<[string, shopstate]>
+---
+--- A table defining the options that will be displayed when in the SELL menu of the shop (State `SELLMENU`). \
+--- Each entry in this table should be a two string table, defining the name of the option first, \
+--- followed by the name of the item storage that should be opened to sell from after.
+---@field sell_options              table<[string, string]>
+---
+---@field items                     table       A table of items that the shop offers. Should be set through [`Shop:registerItem()`](lua://Shop.registerItem)
+---@field talks                     table       A table of topics available in the TALK menu. Should be set through [`Shop:registerTalk()`](lua://Shop.registerTalk)
+---@field talk_replacements         table       A table of topics that will replace other topics once they have been chosen. Should be set through [`Shop:registerTalkAfter()`](lua://Shop.registerTalkAfter)
+---
+---@field shopkeeper                Shopkeeper
+---
+---@field voice                     string      The filepath of the voice sound to use for the shop, relative to `assets/sounds/voice`.
+---
+---@field background                string      The filepath of the background texture for this shop, relative to `assets/sprites`
+---@field background_sprite         Sprite      The Sprite instance used to control the background. Not defined in `Shop:init()`.
+---
+---@field shop_music                string      The filepath of the song to play in this shop, relative to `assets/music`
+---@field music                     Music       The `Music` instance used to control the shop's music
+---
+--- A table defining the stat icons used when previewing items in this shop.
+---@field stat_icons                { attack: love.Image, magic: love.Image, defense1: love.Image, defense2: love.Image }
+---
+---@field timer                     Timer
+---
+---@field state                     shopstate|string    The current [state](lua://shopstate) of the shop, **should only be set using [`Shop:setState()`](lua://Shop.setState).**
+---@field state_reason              any                 The current reason for the state of the shop, **should only be set using [`Shop:setState()`](lua://Shop.setState).**
+---
+--- A table defining what will happen when the player leaves the shop.
+--- The keys `map` (target map name), `x` and `y` OR `marker` (target position in map), `facing`, (player facing direction in map), `menu` (return to main menu) can be defined for this table.
+---@field leave_options             { x: number, y: number, map: string, marker: string, facing: "up"|"right"|"down"|"left", menu: boolean }
+---
 local Shop, super = Class(Object, "shop")
 
-function Shop:init()
-    super:init(self)
+---@alias shopstate
+---| "MAINMENU" # The state used when the player is in the Main menu.
+---| "BUYMENU"  # The state used when the player is in the Buy menu.
+---| "SELLMENU" # The state used when the player is selecting the storage they wish to sell items from.
+---| "SELLING"  # The state used after the player has selected a storage and is now choosing items to sell.
+---| "TALKMENU" # The state used when the player is selecting a topic to talk about in the Talk menu.
+---| "DIALOGUE" # The state used when dialogue is occurring.
+---| "LEAVE"    # The state used to initiate leaving the shop.
+---| "LEAVING"  # The state used whilst the shop is transitioning out.
 
+--- Runs the moment the player enters the shop. \
+--- Most dialogue and behaviour of the shop should be defined here. \
+--- This includes (but is not limited to) defining most standard shop text (excluding TALK menu dialogue), 
+--- registering items, talk topics, configuring the [`Shopkeeper`](lua://Shop.shopkeeper), and defining the assets to use (i.e. background and music).
+function Shop:init()
+    super.init(self)
+
+    -- The label used for currency in this shop \
+    -- Must include a `%d` to indicate where currency amounts should substitute in
     self.currency_text = "$%d"
 
     -- Shown when you first enter a shop
@@ -30,7 +121,7 @@ function Shop:init()
     -- Shown when you're in the SELL menu
     self.sell_menu_text = "Sell\nmenu\ntext"
     -- Shown when you try to sell an empty spot
-    self.sell_nothing_text = "Sell\nnothing\attempt"
+    self.sell_nothing_text = "Sell\nnothing\nattempt"
     -- Shown when you're about to sell something.
     self.sell_confirmation_text = "Sell it for\n%s ?"
     -- Shown when you refuse to sell something
@@ -39,6 +130,8 @@ function Shop:init()
     self.sell_text = "Sell\ntext"
     -- Shown when you have nothing in a storage
     self.sell_no_storage_text = "Empty\ninventory\ntext"
+    -- Shown when you have sold all your items in a storage
+    self.sell_everything_text = "Sold\neverything\ntext"
     -- Shown when you enter the talk menu.
     self.talk_text = "Talk\ntext"
 
@@ -50,7 +143,6 @@ function Shop:init()
 
     self.hide_storage_text = false
 
-    -- MAINMENU
     self.menu_options = {
         {"Buy",  "BUYMENU" },
         {"Sell", "SELLMENU"},
@@ -63,16 +155,23 @@ function Shop:init()
     self.talk_replacements = {}
 
     -- SELLMENU
-    self.sell_options = {
-        {"Sell Items",        "items"},
-        {"Sell Weapons",      "weapons"},
-        {"Sell Armor",        "armors"},
-        {"Sell Pocket Items", "storage"}
-    }
+    if Game.inventory.storage_enabled then
+        self.sell_options = {
+            {"Sell Items",        "items"},
+            {"Sell Weapons",      "weapons"},
+            {"Sell Armor",        "armors"},
+            {"Sell Pocket Items", "storage"}
+        }
+    else
+        self.sell_options = {
+            {"Sell Items",        "items"},
+            {"Sell Weapons",      "weapons"},
+            {"Sell Armor",        "armors"}
+        }
+    end
 
     self.background = "ui/shop/bg_seam"
 
-    -- STATES: MAINMENU, BUYMENU, SELLMENU, SELLING, TALKMENU, LEAVE, LEAVING, DIALOGUE
     self.state = "NONE"
     self.state_reason = nil
 
@@ -139,6 +238,8 @@ function Shop:init()
     self.leave_options = {}
 end
 
+--- A function that runs later than `Shop:init()`, primarily setting up UI elements of the shop. \
+--- Code that needs access to variables such as the shop's background Sprite object that would otherwise go in `Shop:init()` should go here.
 function Shop:postInit()
     -- Mutate talks
 
@@ -207,7 +308,11 @@ function Shop:postInit()
         self:onEmote(node.arguments[1])
     end
 
-    self.dialogue_text = DialogueText(nil, 30, 270, 372, 194)
+    self.dialogue_text = DialogueText(nil, 30, 270, 372, 226, {
+        font = self:getFont(),
+        actor = self.shopkeeper:getActor(),
+        indent_string = self:getIndentString()
+    })
 
     self.dialogue_text:registerCommand("emote", emoteCommand)
 
@@ -215,7 +320,11 @@ function Shop:postInit()
     self:addChild(self.dialogue_text)
     self:setDialogueText(self.encounter_text)
 
-    self.right_text = DialogueText("", 30 + 420, 260, 176, 206)
+    self.right_text = DialogueText("", 30 + 420, 260, 176, 206, {
+        font = self:getFont(),
+        actor = self.shopkeeper:getActor(),
+        indent_string = self:getIndentString()
+    })
 
     self.right_text:registerCommand("emote", emoteCommand)
 
@@ -226,8 +335,12 @@ function Shop:postInit()
     self.talk_dialogue = {self.dialogue_text, self.right_text}
 end
 
+--- *(Override)* Runs every time the player selects a topic in the TALK menu. \ 
+--- Call [`Shop:startDialogue()`](lua://Shop.startDialogue) from within this function with text appropriate to the selected topic.
+---@param talk string   The name of the Topic that the player selected.
 function Shop:startTalk(talk) end
 
+--- *(Override)* Runs when the player enters the shop, after it has been fully initialised.
 function Shop:onEnter()
     self:setState("MAINMENU")
     self:setDialogueText(self.encounter_text)
@@ -237,16 +350,23 @@ function Shop:onEnter()
     end
 end
 
+---*(Override)*
+---@param parent Object
 function Shop:onRemove(parent)
-    super:onRemove(self, parent)
+    super.onRemove(self, parent)
 
     self.music:remove()
 end
 
+---@return string
 function Shop:getVoice()
-    return self.voice
+    local actor = self.shopkeeper:getActor()
+    return self.voice or (actor and actor:getVoice())
 end
 
+--- Adds the [`voice`](lua://Shop.voice) of the Shop to a set of dialogue texts.
+--- @param text string[]|string
+--- @return string[]|string
 function Shop:getVoicedText(text)
     local voice = self:getVoice()
 
@@ -263,14 +383,43 @@ function Shop:getVoicedText(text)
     end
 end
 
+---@return string?
+function Shop:getFont()
+    local actor = self.shopkeeper:getActor()
+    if actor then
+        return actor:getFont()
+    end
+
+    return nil
+end
+
+---@return string?
+function Shop:getIndentString()
+    local actor = self.shopkeeper:getActor()
+    if actor then
+        return actor:getIndentString()
+    end
+
+    return nil
+end
+
+---@param text string[]|string
+---@param no_voice? boolean
 function Shop:setDialogueText(text, no_voice)
     self.dialogue_text:setText(no_voice and text or self:getVoicedText(text))
 end
 
+---@param text string[]|string
+---@param no_voice? boolean
 function Shop:setRightText(text, no_voice)
     self.right_text:setText(no_voice and text or self:getVoicedText(text))
 end
 
+--- Changes the shop to a new state.
+---@param state shopstate   The new state of the shop.
+---@param reason? any Additional information that the new state needs, if required:
+---- SELLING - The selected entry of the [`sell_options`](lua://Shop.sell_options) table in SELLMENU.
+---- TALKMENU - An optional `"DIALOGUE"` string literal to indicate that the user has returned from the `"DIALOGUE"` state.
 function Shop:setState(state, reason)
     local old = self.state
     self.state = state
@@ -278,10 +427,14 @@ function Shop:setState(state, reason)
     self:onStateChange(old, self.state)
 end
 
+---@return string|shopstate
 function Shop:getState()
     return self.state
 end
 
+--- *(Override)*
+---@param old shopstate|string
+---@param new shopstate|string
 function Shop:onStateChange(old,new)
     Game.key_repeat = false
     self.buy_confirming = false
@@ -376,15 +529,18 @@ function Shop:onStateChange(old,new)
     end
 end
 
+--- *(Override)* Called when the player selects to leave the shop from the main menu, happens at the same time the leaving dialogue begins.
 function Shop:onLeave()
     self:startDialogue(self.leaving_text, "LEAVING")
 end
 
+--- Leaves the shop with a fade out transition.
 function Shop:leave()
     self.fading_out = true
     self.music:fade(0, 20/30)
 end
 
+--- Leaves the shop instantly, without a transition.
 function Shop:leaveImmediate()
     self:remove()
     Game.shop = nil
@@ -409,13 +565,19 @@ function Shop:leaveImmediate()
     end
 end
 
+--- *(Override)* Called whenever the player enters the TALK submenu.
 function Shop:onTalk() end
 
+--- *(Override)* Called whenever the `[emote:...]` text tag is used in Shop dialogue. Sets the sprite of the shopkeeper.
+---@param emote string The path to the image to set, or id of the animation to set.
 function Shop:onEmote(emote)
     -- Default behaviour: set sprite / animation
     self.shopkeeper:onEmote(emote)
 end
 
+--- Starts a dialogue with the shopkeeper, setting the state to `DIALOGUE`. Use this function inside of [`Shop:startTalk(topic)`](lua://Shop.startTalk).
+---@param text string[]|string      One or more lines of dialogue, supporting Text Commands. Additionally supports the command `[emote:name]` which will cause the Shopkeeper's sprite to change to the sprite specified by `name` and `onEmote()` to run.
+---@param callback? string|fun()    As a function, this argument is called when the dialogue finishes. If it returns `true`, the shop state will not reset when the dialogue finishes. As a string, the shop is set to this state when the dialogue finishes.
 function Shop:startDialogue(text,callback)
 
     local state = "MAINMENU"
@@ -439,10 +601,33 @@ function Shop:startDialogue(text,callback)
     end)
 end
 
+--- Adds an item to the shop at the next available index.
+---@param item      string|Item An `Item` instance or the id of an item to add to the shop.
+---@param options?  table       An optional list of properties that can be defined for this item in the shop, overriding the default values set on the item:
+---| "name"         # The name of the item shown in the shop.
+---| "description"  # The description of the item shown in the shop
+---| "price"        # The price of the item in this shop
+---| "bonuses"      # The preview stat bonuses provided by the item (does not affect actual item stat bonuses)
+---| "color"        # The color of the item name text
+---| "flag"         # The name of a flag used to store the remaining stock of this item. Defaults to `stock_<index>_<item.id>`
+---| "stock"        # The default number of stock of this item. Infinite if unspecified.
+---@return boolean success Whether the item was successfully added to the shop.
 function Shop:registerItem(item, options)
     return self:replaceItem(#self.items + 1, item, options)
 end
 
+--- Adds or replaces an item in the shop.
+---@param index     integer     The index in the shop which this item should appear at.
+---@param item      string|Item An `Item` instance or the id of an item to add to the shop.
+---@param options?  table       An optional list of properties that can be defined for this item in the shop, overriding the default values set on the item:
+---| "name"         # The name of the item shown in the shop.
+---| "description"  # The description of the item shown in the shop
+---| "price"        # The price of the item in this shop
+---| "bonuses"      # The preview stat bonuses provided by the item (does not affect actual item stat bonuses)
+---| "color"        # The color of the item name text
+---| "flag"         # The name of a flag used to store the remaining stock of this item. Defaults to `stock_<index>_<item.id>`
+---| "stock"        # The default number of stock of this item. Infinite if unspecified.
+---@return boolean  success Whether the item was successfully added to the shop.
 function Shop:replaceItem(index, item, options)
     if type(item) == "string" then
         item = Registry.createItem(item)
@@ -468,31 +653,42 @@ function Shop:replaceItem(index, item, options)
     end
 end
 
+--- Registers a talk topic that will appear in the TALK submenu.
+---@param talk      string                              The name of the topic.
+---@param color?    [number, number, number, number?]   The color that the topic name will appear as. Defaults to white.
 function Shop:registerTalk(talk, color)
     table.insert(self.talks, {talk, {color=color or COLORS.white}})
 end
 
+--- Replaces one talk topic with another.
+---@param talk      string                              The name of the topic.
+---@param index     integer                             The index that will be replaced with this topic.
+---@param color?    [number, number, number, number?]   The color that the topic name will appear as. Defaults to yellow.
 function Shop:replaceTalk(talk, index, color)
     self.talks[index] = {talk, {color=color or COLORS.yellow}}
 end
 
+--- Registers a talk topic that will appear in the TALK submenu when specific conditions are met. \
+--- By default, the new topic will appear after the current topic at `index` has been chosen once.
+---@param talk      string                              The name of the topic.
+---@param index     integer                             The index that will be replaced with this topic.
+---@param flag?     string                              The name of the flag that will be checked against to determine when the topic should be replaced.
+---@param value?    any                                 The value the flag should be at for the topic to be replaced.
+---@param color?    [number, number, number, number?]   The color that the topic name will appear as. Defaults to yellow.
 function Shop:registerTalkAfter(talk, index, flag, value, color)
     table.insert(self.talk_replacements, {index, {talk, {flag=flag or ("talk_" .. tostring(index)), value=value, color=color or COLORS.yellow}}})
 end
 
 function Shop:processReplacements()
     for i = 1, #self.talks do
-        local talk_replacement = nil
-        for j = 1, #self.talk_replacements do 
+        -- Replace talk option if any replacements flag is set
+        -- (Replacements registered later have higher priority)
+        for j = 1, #self.talk_replacements do
             if self.talk_replacements[j][1] == i then
-                talk_replacement = self.talk_replacements[j][2]
-                break
-            end
-        end
-
-        if talk_replacement then
-            if self:getFlag(talk_replacement[2].flag, talk_replacement[2].value) then
-                self:replaceTalk(talk_replacement[1], i, talk_replacement[2].color)
+                local talk_replacement = self.talk_replacements[j][2]
+                if self:getFlag(talk_replacement[2].flag) == (talk_replacement[2].value or true) then
+                    self:replaceTalk(talk_replacement[1], i, talk_replacement[2].color)
+                end
             end
         end
     end
@@ -508,7 +704,7 @@ function Shop:update()
         end
     end
 
-    super:update(self)
+    super.update(self)
 
     self.box_ease_timer = math.min(1, self.box_ease_timer + (DT * self.box_ease_multiplier))
 
@@ -551,45 +747,68 @@ end
 function Shop:draw()
     self:drawBackground()
 
-    super:draw(self)
+    super.draw(self)
 
     love.graphics.setFont(self.font)
     if self.state == "MAINMENU" then
-        love.graphics.setColor(COLORS.white)
+        Draw.setColor(COLORS.white)
         for i = 1, #self.menu_options do
             love.graphics.print(self.menu_options[i][1], 480, 220 + (i * 40))
         end
-        love.graphics.setColor(Game:getSoulColor())
-        love.graphics.draw(self.heart_sprite, 450, 230 + (self.main_current_selecting * 40))
+        Draw.setColor(Game:getSoulColor())
+        Draw.draw(self.heart_sprite, 450, 230 + (self.main_current_selecting * 40))
     elseif self.state == "BUYMENU" then
+
+        while self.current_selecting - self.item_offset > 5 do
+            self.item_offset = self.item_offset + 1
+        end
+
+        while self.current_selecting - self.item_offset < 1 do
+            self.item_offset = self.item_offset - 1
+        end
+
+        if self.item_offset + 5 > #self.items + 1 then
+            if #self.items + 1 > 5 then
+                self.item_offset = self.item_offset - 1
+            end
+        end
+
+        if #self.items + 1 == 5 then
+            self.item_offset = 0
+        end
+
         -- Item type (item, key, weapon, armor)
-        for i = 1, math.max(4, #self.items) do
+        for i = 1 + self.item_offset, self.item_offset + math.max(4, math.min(5, #self.items)) do
+            if i == math.max(4, #self.items) + 1 then break end
+            local y = 220 + ((i - self.item_offset) * 40)
             local item = self.items[i]
             if not item then
                 -- If the item is null, add some empty space
-                love.graphics.setColor(COLORS.dkgray)
-                love.graphics.print("--------", 60, 220 + (i * 40))
+                Draw.setColor(COLORS.dkgray)
+                love.graphics.print("--------", 60, y)
             elseif item.options["stock"] and (item.options["stock"] <= 0) then
                 -- If we've depleted the stock, show a "sold out" message
-                love.graphics.setColor(COLORS.gray)
-                love.graphics.print("--SOLD OUT--", 60, 220 + (i * 40))
+                Draw.setColor(COLORS.gray)
+                love.graphics.print("--SOLD OUT--", 60, y)
             else
-                love.graphics.setColor(item.options["color"])
-                love.graphics.print(item.options["name"], 60, 220 + (i * 40))
+                Draw.setColor(item.options["color"])
+                love.graphics.print(item.options["name"], 60, y)
                 if not self.hide_price then
-                    love.graphics.setColor(COLORS.white)
-                    love.graphics.print(string.format(self.currency_text, item.options["price"] or 0), 60 + 240, 220 + (i * 40))
+                    Draw.setColor(COLORS.white)
+                    love.graphics.print(string.format(self.currency_text, item.options["price"] or 0), 60 + 240, y)
                 end
             end
         end
-        love.graphics.setColor(COLORS.white)
-        love.graphics.print("Exit", 60, 220 + ((math.max(4, #self.items) + 1) * 40))
-        love.graphics.setColor(Game:getSoulColor())
+        Draw.setColor(COLORS.white)
+        if self.item_offset == math.max(4, #self.items) - 4 then
+            love.graphics.print("Exit", 60, 220 + (math.max(4, #self.items) + 1 - self.item_offset) * 40)
+        end
+        Draw.setColor(Game:getSoulColor())
         if not self.buy_confirming then
-            love.graphics.draw(self.heart_sprite, 30, 230 + (self.current_selecting * 40))
+            Draw.draw(self.heart_sprite, 30, 230 + ((self.current_selecting - self.item_offset) * 40))
         else
-            love.graphics.draw(self.heart_sprite, 30 + 420, 230 + 80 + 10 + (self.current_selecting_choice * 30))
-            love.graphics.setColor(COLORS.white)
+            Draw.draw(self.heart_sprite, 30 + 420, 230 + 80 + 10 + (self.current_selecting_choice * 30))
+            Draw.setColor(COLORS.white)
             local lines = Utils.split(string.format(self.buy_confirmation_text, string.format(self.currency_text, self.items[self.current_selecting].options["price"] or 0)), "\n")
             for i = 1, #lines do
                 love.graphics.print(lines[i], 60 + 400, 420 - 160 + ((i - 1) * 30))
@@ -597,7 +816,7 @@ function Shop:draw()
             love.graphics.print("Yes", 60 + 420, 420 - 80)
             love.graphics.print("No",  60 + 420, 420 - 80 + 30)
         end
-        love.graphics.setColor(COLORS.white)
+        Draw.setColor(COLORS.white)
 
         if (self.current_selecting <= #self.items) then
             local current_item = self.items[self.current_selecting]
@@ -611,44 +830,39 @@ function Shop:draw()
             Draw.pushScissor()
             Draw.scissor(left, top, width, height)
 
-            love.graphics.setColor(COLORS.white)
+            Draw.setColor(COLORS.white)
             love.graphics.print(current_item.options["description"], left + 32, top + 20)
 
             if current_item.item.type == "armor" or current_item.item.type == "weapon" then
                 for i = 1, #Game.party do
-                    local offset_x = 0
-                    local offset_y = 0
-                    -- TODO: more than 3 party member support
-                    if i == 1 then
-                        offset_x = 0
-                        offset_y = 0
-                    elseif i == 2 then
-                        offset_x = 100
-                        offset_y = 0
-                    elseif i == 3 then
-                        offset_x = 0
-                        offset_y = 45
-                    end
+                    -- Turn the index into a 2 wide grid (0-indexed)
+                    local transformed_x = (i - 1) % 2
+                    local transformed_y = math.floor((i - 1) / 2)
+
+                    -- Transform the grid into coordinates
+                    local offset_x = transformed_x * 100
+                    local offset_y = transformed_y * 45
+
                     local party_member = Game.party[i]
                     local can_equip = party_member:canEquip(current_item.item)
                     local head_path = ""
 
                     love.graphics.setFont(self.plain_font)
-                    love.graphics.setColor(COLORS.white)
+                    Draw.setColor(COLORS.white)
 
                     if can_equip then
                         head_path = Assets.getTexture(party_member:getHeadIcons() .. "/head")
                         if current_item.item.type == "armor" then
-                            love.graphics.draw(self.stat_icons["defense_1"], offset_x + 470, offset_y + 127 + top)
-                            love.graphics.draw(self.stat_icons["defense_2"], offset_x + 470, offset_y + 147 + top)
+                            Draw.draw(self.stat_icons["defense_1"], offset_x + 470, offset_y + 127 + top)
+                            Draw.draw(self.stat_icons["defense_2"], offset_x + 470, offset_y + 147 + top)
 
                             for j = 1, 2 do
                                 self:drawBonuses(party_member, party_member:getArmor(j), current_item.options["bonuses"], "defense", offset_x + 470 + 21, offset_y + 127 + ((j - 1) * 20) + top)
                             end
 
                         elseif current_item.item.type == "weapon" then
-                            love.graphics.draw(self.stat_icons["attack"], offset_x + 470, offset_y + 127 + top)
-                            love.graphics.draw(self.stat_icons["magic" ], offset_x + 470, offset_y + 147 + top)
+                            Draw.draw(self.stat_icons["attack"], offset_x + 470, offset_y + 127 + top)
+                            Draw.draw(self.stat_icons["magic" ], offset_x + 470, offset_y + 147 + top)
                             self:drawBonuses(party_member, party_member:getWeapon(), current_item.options["bonuses"], "attack", offset_x + 470 + 21, offset_y + 127 + top)
                             self:drawBonuses(party_member, party_member:getWeapon(), current_item.options["bonuses"], "magic",  offset_x + 470 + 21, offset_y + 147 + top)
                         end
@@ -656,13 +870,13 @@ function Shop:draw()
                         head_path = Assets.getTexture(party_member:getHeadIcons() .. "/head_error")
                     end
 
-                    love.graphics.draw(head_path, offset_x + 426, offset_y + 132 + top)
+                    Draw.draw(head_path, offset_x + 426, offset_y + 132 + top)
                 end
             end
 
             Draw.popScissor()
 
-            love.graphics.setColor(COLORS.white)
+            Draw.setColor(COLORS.white)
 
             if not self.hide_storage_text then
                 love.graphics.setFont(self.plain_font)
@@ -672,15 +886,15 @@ function Shop:draw()
 
                 if space <= 0 then
                     love.graphics.print("NO SPACE", 521, 430)
-                else    
+                else
                     love.graphics.print("Space:" .. space, 521, 430)
                 end
             end
         end
     elseif self.state == "SELLMENU" then
-        love.graphics.setColor(Game:getSoulColor())
-        love.graphics.draw(self.heart_sprite, 50, 230 + (self.sell_current_selecting * 40))
-        love.graphics.setColor(COLORS.white)
+        Draw.setColor(Game:getSoulColor())
+        Draw.draw(self.heart_sprite, 50, 230 + (self.sell_current_selecting * 40))
+        Draw.setColor(COLORS.white)
         love.graphics.setFont(self.font)
         for i, v in ipairs(self.sell_options) do
             love.graphics.print(v[1], 80, 220 + (i * 40))
@@ -708,12 +922,12 @@ function Shop:draw()
             end
         end
 
-        love.graphics.setColor(Game:getSoulColor())
+        Draw.setColor(Game:getSoulColor())
 
-        love.graphics.draw(self.heart_sprite, 30, 230 + ((self.item_current_selecting - self.item_offset) * 40))
+        Draw.draw(self.heart_sprite, 30, 230 + ((self.item_current_selecting - self.item_offset) * 40))
         if self.sell_confirming then
-            love.graphics.draw(self.heart_sprite, 30 + 420, 230 + 80 + 10 + (self.current_selecting_choice * 30))
-            love.graphics.setColor(COLORS.white)
+            Draw.draw(self.heart_sprite, 30 + 420, 230 + 80 + 10 + (self.current_selecting_choice * 30))
+            Draw.setColor(COLORS.white)
             local lines = Utils.split(string.format(self.sell_confirmation_text, string.format(self.currency_text, inventory[self.item_current_selecting]:getSellPrice())), "\n")
             for i = 1, #lines do
                 love.graphics.print(lines[i], 60 + 400, 420 - 160 + ((i - 1) * 30))
@@ -722,7 +936,7 @@ function Shop:draw()
             love.graphics.print("No",  60 + 420, 420 - 80 + 30)
         end
 
-        love.graphics.setColor(COLORS.white)
+        Draw.setColor(COLORS.white)
 
         if inventory then
             for i = 1 + self.item_offset, self.item_offset + math.min(5, inventory.max) do
@@ -730,13 +944,13 @@ function Shop:draw()
                 love.graphics.setFont(self.font)
 
                 if item then
-                    love.graphics.setColor(COLORS.white)
+                    Draw.setColor(COLORS.white)
                     love.graphics.print(item:getName(), 60, 220 + ((i - self.item_offset) * 40))
                     if item:isSellable() then
                         love.graphics.print(string.format(self.currency_text, item:getSellPrice()), 60 + 240, 220 + ((i - self.item_offset) * 40))
                     end
                 else
-                    love.graphics.setColor(COLORS.dkgray)
+                    Draw.setColor(COLORS.dkgray)
                     love.graphics.print("--------", 60, 220 + ((i - self.item_offset) * 40))
                 end
             end
@@ -746,16 +960,16 @@ function Shop:draw()
                 max = #inventory
             end
 
-            love.graphics.setColor(COLORS.white)
+            Draw.setColor(COLORS.white)
 
             if max > 5 then
 
                 for i = 1, max do
                     local percentage = (i - 1) / (max - 1)
                     local height = 129
-    
+
                     local draw_location = percentage * height
-    
+
                     local tocheck = self.item_current_selecting
                     if self.sell_confirming then
                         tocheck = self.current_selecting_choice
@@ -772,10 +986,10 @@ function Shop:draw()
                 if not self.sell_confirming then
                     local sine_off = math.sin((Kristal.getTime()*30)/6) * 3
                     if self.item_offset + 4 < (max - 1) then
-                        love.graphics.draw(self.arrow_sprite, 370, 149 + sine_off + 291)
+                        Draw.draw(self.arrow_sprite, 370, 149 + sine_off + 291)
                     end
                     if self.item_offset > 0 then
-                        love.graphics.draw(self.arrow_sprite, 370, 14 - sine_off + 291 - 25, 0, 1, -1)
+                        Draw.draw(self.arrow_sprite, 370, 14 - sine_off + 291 - 25, 0, 1, -1)
                     end
                 end
             end
@@ -783,21 +997,21 @@ function Shop:draw()
             love.graphics.print("Invalid storage", 60, 220 + (1 * 40))
         end
     elseif self.state == "TALKMENU" then
-        love.graphics.setColor(Game:getSoulColor())
-        love.graphics.draw(self.heart_sprite, 50, 230 + (self.current_selecting * 40))
-        love.graphics.setColor(COLORS.white)
+        Draw.setColor(Game:getSoulColor())
+        Draw.draw(self.heart_sprite, 50, 230 + (self.current_selecting * 40))
+        Draw.setColor(COLORS.white)
         love.graphics.setFont(self.font)
         for i = 1, math.max(4, #self.talks) do
             local v = self.talks[i]
             if v then
-                love.graphics.setColor(v[2].color)
+                Draw.setColor(v[2].color)
                 love.graphics.print(v[1], 80, 220 + (i * 40))
             else
-                love.graphics.setColor(COLORS.dkgray)
+                Draw.setColor(COLORS.dkgray)
                 love.graphics.print("--------", 80, 220 + (i * 40))
             end
         end
-        love.graphics.setColor(COLORS.white)
+        Draw.setColor(COLORS.white)
         love.graphics.print("Exit", 80, 220 + ((math.max(4, #self.talks) + 1) * 40))
     end
 
@@ -806,15 +1020,22 @@ function Shop:draw()
        self.state == "SELLMENU" or
        self.state == "SELLING"  or
        self.state == "TALKMENU" then
-        love.graphics.setColor(COLORS.white)
+        Draw.setColor(COLORS.white)
         love.graphics.setFont(self.font)
-        love.graphics.print(string.format(self.currency_text, Game.money), 440, 420)
+        love.graphics.print(string.format(self.currency_text, self:getMoney()), 440, 420)
     end
 
-    love.graphics.setColor(0, 0, 0, self.fade_alpha)
+    Draw.setColor(0, 0, 0, self.fade_alpha)
     love.graphics.rectangle("fill", 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT)
 end
 
+--- Used to draw the comparative bonus number for an item stat against a party member's current equipment.
+---@param party_member  PartyMember
+---@param old_item      Item
+---@param bonuses       table
+---@param stat          string
+---@param x             number
+---@param y             number      
 function Shop:drawBonuses(party_member, old_item, bonuses, stat, x, y)
     local old_stat = 0
 
@@ -825,23 +1046,26 @@ function Shop:drawBonuses(party_member, old_item, bonuses, stat, x, y)
     local amount = (bonuses[stat] or 0) - old_stat
     local amount_string = tostring(amount)
     if amount < 0 then
-        love.graphics.setColor(COLORS.aqua)
+        Draw.setColor(COLORS.aqua)
     elseif amount == 0 then
-        love.graphics.setColor(COLORS.white)
+        Draw.setColor(COLORS.white)
     elseif amount > 0 then
-        love.graphics.setColor(COLORS.yellow)
+        Draw.setColor(COLORS.yellow)
         amount_string = "+" .. amount_string
     end
     love.graphics.print(amount_string, x, y)
-    love.graphics.setColor(COLORS.white)
+    Draw.setColor(COLORS.white)
 end
 
+--- *(Override)* Draws a background for the shop.
 function Shop:drawBackground()
     -- Draw a black backdrop
-    love.graphics.setColor(0, 0, 0, 1)
+    Draw.setColor(0, 0, 0, 1)
     love.graphics.rectangle("fill", 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT)
 end
 
+---@param key       string
+---@param is_repeat boolean
 function Shop:onKeyPressed(key, is_repeat)
     if self.state == "MAINMENU" then
         if Input.isConfirm(key) then
@@ -962,9 +1186,10 @@ function Shop:onKeyPressed(key, is_repeat)
                             if self.item_current_selecting > #inventory then
                                 self.item_current_selecting = self.item_current_selecting - 1
                             end
-                            if self.item_current_selecting == 0 then
-                                self:setState("SELLMENU", true)
-                            end
+                        end
+                        if self.item_current_selecting == 0 or Game.inventory:getItemCount(self.state_reason[2], false) == 0 then
+                            self:setRightText(self.sell_everything_text)
+                            self:setState("SELLMENU", true)
                         end
                     elseif self.current_selecting_choice == 2 then
                         self:setRightText(self.sell_refuse_text)
@@ -1044,6 +1269,7 @@ function Shop:onKeyPressed(key, is_repeat)
     end
 end
 
+---@param sell_data [string, string]    An entry in the [sell_options](lua://Shop.sell_options) table reflecting the storage to enter.
 function Shop:enterSellMenu(sell_data)
     if not sell_data then
         self:setRightText(self.sell_no_storage_text)
@@ -1056,14 +1282,12 @@ function Shop:enterSellMenu(sell_data)
     end
 end
 
+--- Checks that the player meets the conditions to purchase an item, and then purchases it.
+---@param current_item { item: Item, options: table }   The shop entry of the item being purchased.
 function Shop:buyItem(current_item)
-    if (current_item.options["price"] or 0) > Game.money then
+    if (current_item.options["price"] or 0) > self:getMoney() then
         self:setRightText(self.buy_too_expensive_text)
     else
-        -- PURCHASE THE ITEM
-        -- Remove the gold
-        Game.money = Game.money - (current_item.options["price"] or 0)
-
         -- Decrement the stock
         if current_item.options["stock"] then
             current_item.options["stock"] = current_item.options["stock"] - 1
@@ -1077,6 +1301,10 @@ function Shop:buyItem(current_item)
             -- Visual/auditorial feedback (did I spell that right?)
             Assets.playSound("locker")
             self:setRightText(self.buy_text)
+
+            -- PURCHASE THE ITEM
+            -- Remove the money
+            self:removeMoney(current_item.options["price"] or 0)
         else
             -- Not enough space, oops
             self:setRightText(self.buy_no_space_text)
@@ -1084,22 +1312,48 @@ function Shop:buyItem(current_item)
     end
 end
 
+---@param name  string
+---@param value any
 function Shop:setFlag(name, value)
     Game:setFlag("shop#" .. self.id .. ":" .. name, value)
 end
 
+---@param name      string
+---@param default?  any
+---@return any
 function Shop:getFlag(name, default)
     return Game:getFlag("shop#" .. self.id .. ":" .. name, default)
 end
 
+---@param current_item Item
 function Shop:sellItem(current_item)
     -- SELL THE ITEM
     -- Add the gold
-    Game.money = Game.money + current_item:getSellPrice()
+    self:addMoney(current_item:getSellPrice())
     Game.inventory:removeItem(current_item)
 
     Assets.playSound("locker")
     self:setRightText(self.sell_text)
+end
+
+---@return number
+function Shop:getMoney()
+    return Game.money
+end
+
+---@param amount number
+function Shop:setMoney(amount)
+    Game.money = amount
+end
+
+---@param amount number
+function Shop:addMoney(amount)
+    self:setMoney(self:getMoney() + amount)
+end
+
+---@param amount number
+function Shop:removeMoney(amount)
+    self:setMoney(self:getMoney() - amount)
 end
 
 return Shop

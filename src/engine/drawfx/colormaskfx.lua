@@ -1,7 +1,9 @@
+---@class ColorMaskFX : FXBase
+---@overload fun(...) : ColorMaskFX
 local ColorMaskFX, super = Class(FXBase)
 
 function ColorMaskFX:init(color, amount, priority)
-    super:init(self, priority or 0)
+    super.init(self, priority or 0)
 
     self.color = color or {1, 1, 1}
     self.amount = amount or 1
@@ -16,7 +18,7 @@ function ColorMaskFX:getColor()
 end
 
 function ColorMaskFX:isActive()
-    return super:isActive(self) and self.amount > 0
+    return super.isActive(self) and self.amount > 0
 end
 
 function ColorMaskFX:draw(texture)

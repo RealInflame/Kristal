@@ -1,3 +1,7 @@
+--- Actors are a type of data class that represent the visuals of a character - anything that is some type of character, be it the player, an NPC, or an enemy in battle, it will require an actor. \
+--- As a data class, actors are stored in `scripts/data/actors/`, and extend this class. Their filepath starting from here becomes their id, unless an id is specified as an argument to `Class()`.
+---@class Actor : Class
+---@overload fun(...) : Actor
 local Actor = Class()
 
 function Actor:init()
@@ -10,6 +14,10 @@ function Actor:init()
 
     -- Hitbox for this actor in the overworld (optional, uses width and height by default)
     self.hitbox = nil
+
+    -- A table that defines where the Soul should be placed on this actor if they are a player.
+    -- First value is x, second value is y.
+    self.soul_offset = {10, 24}
 
     -- Color for this actor used in outline areas (optional, defaults to red)
     self.color = {1, 0, 0}
@@ -24,12 +32,21 @@ function Actor:init()
 
     -- Sound to play when this actor speaks (optional)
     self.voice = nil
+    -- Font to use when this actor speaks (optional)
+    self.font = nil
+    -- Font size to use for the chosen font for speech bubbles in battles (optional)
+    -- Recommended to use half of the default size
+    self.speech_bubble_font_size = nil
     -- Indent style for the actor (optional)
     self.indent_string = nil
     -- Path to this actor's portrait for dialogue (optional)
     self.portrait_path = nil
     -- Offset position for this actor's portrait (optional)
     self.portrait_offset = nil
+    -- Path to this actor's miniface for dialogue (optional)
+    self.miniface = nil
+    -- Offset position for this actor's miniface (optional)
+    self.miniface_offset = nil
 
     -- Whether this actor as a follower will blush when close to the player
     self.can_blush = false
@@ -39,6 +56,14 @@ function Actor:init()
 
     -- Table of sprites that have a unique flip value, if self.flip is not set
     self.flip_sprites = {}
+
+    -- Tables of sprites to change into in mirrors
+    self.mirror_sprites = {
+        ["walk/down"] = "walk/up",
+        ["walk/up"] = "walk/down",
+        ["walk/left"] = "walk/left",
+        ["walk/right"] = "walk/right",
+    }
 
     -- Table of sprite animations
     self.animations = {}
@@ -95,6 +120,10 @@ function Actor:getHitbox()
     end
 end
 
+function Actor:getSoulOffset()
+    return unpack(self.soul_offset)
+end
+
 function Actor:getColor()
     if self.color then
         return self.color[1], self.color[2], self.color[3], self.color[4] or 1
@@ -110,10 +139,14 @@ function Actor:getDefaultAnim() return self.default_anim end
 function Actor:getDefault() return self:getDefaultAnim() or self:getDefaultSprite() or self.default or "" end
 
 function Actor:getVoice() return self.voice end
+function Actor:getFont() return self.font end
+function Actor:getSpeechBubbleFontSize() return self.speech_bubble_font_size end
 function Actor:getIndentString() return self.indent_string end
 
 function Actor:getPortraitPath() return self.portrait_path end
 function Actor:getPortraitOffset() return unpack(self.portrait_offset or {0, 0}) end
+function Actor:getMiniface() return self.miniface end
+function Actor:getMinifaceOffset() return unpack(self.miniface_offset or {0, 0}) end
 
 function Actor:getFlipDirection(sprite) return self.flip or self.flip_sprites[sprite] end
 
@@ -122,8 +155,12 @@ function Actor:getTalkSpeed(sprite) return self.talk_sprites[sprite] or 0.25 end
 
 function Actor:getAnimation(anim) return self.animations[anim] end
 
+function Actor:getMirrorSprites() return self.mirror_sprites end
+function Actor:getMirrorSprite(sprite) return self:getMirrorSprites()[sprite] end
+
 function Actor:hasOffset(sprite) return self.offsets[sprite] ~= nil end
 function Actor:getOffset(sprite) return unpack(self.offsets[sprite] or {0, 0}) end
+function Actor:onTextSound(node, state) end
 
 -- Misc Functions
 function Actor:createSprite()

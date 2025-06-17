@@ -1,7 +1,7 @@
 local spell, super = Class(Spell, "heal_prayer")
 
 function spell:init()
-    super:init(self)
+    super.init(self)
 
     -- Display name
     self.name = "Heal Prayer"
@@ -9,7 +9,11 @@ function spell:init()
     self.cast_name = nil
 
     -- Battle description
-    self.effect = "Heal\nAlly"
+    if Game.chapter <= 3 then
+        self.effect = "Heal\nAlly"
+    else
+        self.effect = "Heal\nally"
+    end
     -- Menu description
     self.description = "Heavenly light restores a little HP to\none party member. Depends on Magic."
 
@@ -25,6 +29,14 @@ end
 
 function spell:onCast(user, target)
     target:heal(user.chara:getStat("magic") * 5)
+end
+
+function spell:hasWorldUsage(chara)
+    return true
+end
+
+function spell:onWorldCast(chara)
+    Game.world:heal(chara, 100)
 end
 
 return spell

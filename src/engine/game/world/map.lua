@@ -1,3 +1,7 @@
+--- Stores and manages the currently loaded map. \
+--- If a map in `scrips/world/maps` is defined as a folder, map data can be placed in `data.lua`, and a file named `map.lua` can be used to define a custom `Map` object for that map.
+---@class Map : Class
+---@overload fun(...) : Map
 local Map = Class()
 
 function Map:init(world, data)
@@ -53,6 +57,7 @@ function Map:init(world, data)
     self.events = {}
     self.events_by_name = {}
     self.events_by_id = {}
+    self.events_by_layer = {}
 
     self.shapes_by_id = {}
     self.shapes_by_name = {}
@@ -128,6 +133,10 @@ function Map:addFlag(flag, amount)
     return Game:addFlag(uid..":"..flag, amount)
 end
 
+--- Gets a specific marker from the current map.
+---@param name string The name of the marker to search for.
+---@return number x The x-coordinate of the marker's center.
+---@return number y The y-coordinate of the marker's center.
 function Map:getMarker(name)
     local marker = self.markers[name]
     return marker and marker.center_x or (self.width * self.tile_width/2), marker and marker.center_y or (self.height * self.tile_height/2)
@@ -177,6 +186,9 @@ function Map:setTile(x, y, tileset, ...)
     tile_layer:setTile(x, y, tileset, unpack(args))
 end
 
+--- Gets a specific event present in the current map.
+---@param id string|number  The unique numerical id of an event OR the text id of an event type to get the first instance of.
+---@return Event event The event instnace, or `nil` if it was not found. 
 function Map:getEvent(id)
     if type(id) == "number" then
         return self.events_by_id[id]
@@ -187,6 +199,9 @@ function Map:getEvent(id)
     end
 end
 
+--- Gets a list of all instances of one type of event in the current maps
+---@param name? string The text id of the event to search for, fetches every event if `nil`
+---@return Event[] events A table containing every instance of the event in the current map
 function Map:getEvents(name)
     if name then
         return self.events_by_name[name] or {}
@@ -292,6 +307,7 @@ function Map:loadMapData(data)
         self.next_layer = self.next_layer + self.depth_per_layer
     end
 
+    self.object_layer = nil
     for i,layer in ipairs(layers) do
         local name = layer.name:lower()
         local depth = indexed_layers[i]
@@ -301,54 +317,63 @@ function Map:loadMapData(data)
         end
         if layer.type == "objectgroup" and Utils.startsWith(name, "objects") then
             table.insert(object_depths, depth)
+            if layer.properties["spawn"] then
+                self.object_layer = depth
+            end
         end
         if layer.type == "tilelayer" and not Utils.startsWith(name, "battleborder") then
             table.insert(tile_depths, depth)
         end
-        if not Kristal.callEvent("loadLayer", self, layer, depth) then
+        if not Kristal.callEvent(KRISTAL_EVENT.loadLayer, self, layer, depth) then
             self:loadLayer(layer, depth)
         end
     end
 
-    self.object_layer = 1
-
-    local nameless_object_layer = nil
-    local has_markers_layer = false
-    for i,layer in ipairs(layers) do
-        local name = layer.name:lower()
-        local depth = indexed_layers[i]
-        if layer.type == "objectgroup" then
-            if Utils.startsWith(name, "markers") then
-                has_markers_layer = true
-                if #object_depths == 0 then
-                    -- If there are no object layers, set the object depth to the marker layer's depth
-                    self.object_layer = depth
-                else
-                    -- Otherwise, set the object depth to the closest object layer's depth
-                    local closest
-                    for _,obj_depth in ipairs(object_depths) do
-                        if not closest then
-                            closest = obj_depth
-                        elseif math.abs(depth - obj_depth) <= math.abs(depth - closest) then
-                            closest = obj_depth
-                        else
-                            break
+    -- old behavior, ideally should not be used
+    if not self.object_layer then
+        self.object_layer = 1
+        local priority_object_layer = nil
+        local has_markers_layer = false
+        for i,layer in ipairs(layers) do
+            local name = layer.name:lower()
+            local depth = indexed_layers[i]
+            if layer.type == "objectgroup" then
+                if Utils.startsWith(name, "markers") then
+                    has_markers_layer = true
+                    priority_object_layer = nil
+                    if #object_depths == 0 then
+                        -- If there are no object layers, set the object depth to the marker layer's depth
+                        self.object_layer = depth
+                    else
+                        -- Otherwise, set the object depth to the closest object layer's depth
+                        local closest
+                        for _,obj_depth in ipairs(object_depths) do
+                            if not closest then
+                                closest = obj_depth
+                            elseif math.abs(depth - obj_depth) <= math.abs(depth - closest) then
+                                closest = obj_depth
+                            else
+                                break
+                            end
                         end
+                        self.object_layer = closest or depth
                     end
-                    self.object_layer = closest or depth
+                elseif name == "objects_party" then
+                    priority_object_layer = depth
+                    break -- always use 'objects_party' if available
+                elseif not has_markers_layer then
+                    -- If there is no markers layer, set the object layer to the highest object layer
+                    if name == "objects" then
+                        priority_object_layer = depth
+                    end
+                    self.object_layer = depth
                 end
-            elseif not has_markers_layer then
-                -- If there is no markers layer, set the object layer to the highest object layer
-                if name == "objects" then
-                    nameless_object_layer = depth
-                end
-                self.object_layer = depth
             end
         end
-    end
-    -- If no marker layers, prioritize object layers without a custom name
-    if nameless_object_layer and not has_markers_layer then
-        self.object_layer = nameless_object_layer
+        -- If no marker layers, prioritize object layers without a custom name
+        if priority_object_layer then
+            self.object_layer = priority_object_layer
+        end
     end
 
     -- Set the tile layer depth to the closest tile layer below the object layer
@@ -541,11 +566,28 @@ end
 function Map:loadObjects(layer, depth, layer_type)
     local parent = layer_type == "controllers" and self.world.controller_parent or self.world
 
+    self.events_by_layer[layer.name] = {}
     for _,v in ipairs(layer.objects) do
         v.width = v.width or 0
         v.height = v.height or 0
         v.center_x = v.x + v.width/2
         v.center_y = v.y + v.height/2
+
+        -- Get width/height of the full polygon (usable when a polygon is not supported on an object)
+        if v.polygon then
+            local min_x, max_x, min_y, max_y = 0, 0, 0, 0
+            for _, point in ipairs(v.polygon) do
+                min_x = math.min(point.x, min_x)
+                max_x = math.max(point.x, max_x)
+                min_y = math.min(point.y, min_y)
+                max_y = math.max(point.y, max_y)
+            end
+
+            v.width = max_x - min_x
+            v.height = max_y - min_y
+            v.center_x = v.x - min_x + v.width/2
+            v.center_y = v.y - min_y + v.height/2
+        end
 
         if v.gid then
             local tx,ty,tw,th = self:getTileObjectRect(v)
@@ -565,7 +607,8 @@ function Map:loadObjects(layer, depth, layer_type)
                 local env = setmetatable({}, {__index = function(t, k)
                     return Game.flags[uid..":"..k] or Game.flags[k] or _G[k]
                 end})
-                skip_loading = not setfenv(loadstring("return "..v.properties["cond"]), env)()
+                local chunk, _ = assert(loadstring("return "..v.properties["cond"]))
+                skip_loading = not setfenv(chunk, env)()
             elseif v.properties["flagcheck"] then
                 local inverted, flag = Utils.startsWith(v.properties["flagcheck"], "!")
 
@@ -605,12 +648,18 @@ function Map:loadObjects(layer, depth, layer_type)
                     end
                     obj.layer = depth
                     obj.data = v
+
+                    if v.properties["usetile"] and v.gid and obj.applyTileObject then
+                        obj:applyTileObject(v, self)
+                    end
+
                     parent:addChild(obj)
 
                     table.insert(self.events, obj)
 
                     self.events_by_name[v.name] = self.events_by_name[v.name] or {}
                     table.insert(self.events_by_name[v.name], obj)
+                    table.insert(self.events_by_layer[layer.name], obj)
 
                     if v.id then
                         self.events_by_id[v.id] = obj
@@ -641,7 +690,7 @@ function Map:loadObject(name, data)
         return Registry.createEvent(name, data)
     end
     -- Library object loading
-    for id,lib in pairs(Mod.libs) do
+    for id,lib in Kristal.iterLibraries() do
         local obj = Kristal.libCall(id, "loadObject", self.world, name, data)
         if obj then
             return obj
@@ -657,54 +706,67 @@ function Map:loadObject(name, data)
         chara_x = tx + tw/2
         chara_y = ty + th
     end
+
+    local shape_data = {data.width, data.height, data.polygon}
+
+    local rect_data = Utils.copy(shape_data)
+    rect_data[3] = nil
+
     -- Kristal object loading
     if name:lower() == "savepoint" then
         return Savepoint(data.center_x, data.center_y, data.properties)
     elseif name:lower() == "interactable" then
-        return Interactable(data.x, data.y, data.width, data.height, data.properties)
+        return Interactable(data.x, data.y, shape_data, data.properties)
     elseif name:lower() == "script" then
-        return Script(data.x, data.y, data.width, data.height, data.properties)
+        return Script(data.x, data.y, shape_data, data.properties)
     elseif name:lower() == "transition" then
-        return Transition(data.x, data.y, data.width, data.height, data.properties)
+        return Transition(data.x, data.y, shape_data, data.properties)
     elseif name:lower() == "npc" then
         return NPC(data.properties["actor"], chara_x, chara_y, data.properties)
     elseif name:lower() == "enemy" then
         return ChaserEnemy(data.properties["actor"], chara_x, chara_y, data.properties)
     elseif name:lower() == "outline" then
-        return Outline(data.x, data.y, data.width, data.height)
+        return Outline(data.x, data.y, rect_data)
     elseif name:lower() == "silhouette" then
-        return Silhouette(data.x, data.y, data.width, data.height)
+        return Silhouette(data.x, data.y, rect_data)
     elseif name:lower() == "slidearea" then
-        return SlideArea(data.x, data.y, data.width, data.height, data.properties)
+        return SlideArea(data.x, data.y, rect_data, data.properties)
+    elseif name:lower() == "mirror" then
+        return MirrorArea(data.x, data.y, rect_data, data.properties)
     elseif name:lower() == "chest" then
         return TreasureChest(data.center_x, data.center_y, data.properties)
     elseif name:lower() == "cameratarget" then
-        return CameraTarget(data.x, data.y, data.width, data.height, data.properties)
+        return CameraTarget(data.x, data.y, shape_data, data.properties)
     elseif name:lower() == "hideparty" then
-        return HideParty(data.x, data.y, data.width, data.height, data.properties.alpha)
+        return HideParty(data.x, data.y, shape_data, data.properties.alpha)
     elseif name:lower() == "setflag" then
-        return SetFlagEvent(data.x, data.y, data.width, data.height, data.properties)
+        return SetFlagEvent(data.x, data.y, shape_data, data.properties)
     elseif name:lower() == "cybertrash" then
         return CyberTrashCan(data.center_x, data.center_y, data.properties)
     elseif name:lower() == "forcefield" then
-        return Forcefield(data.x, data.y, data.width, data.height, data.properties)
+        return Forcefield(data.x, data.y, rect_data, data.properties)
     elseif name:lower() == "pushblock" then
-        return PushBlock(data.x, data.y, data.width, data.height, data.properties)
+        return PushBlock(data.x, data.y, rect_data, data.properties)
     elseif name:lower() == "tilebutton" then
-        return TileButton(data.x, data.y, data.width, data.height, data.properties)
+        return TileButton(data.x, data.y, rect_data, data.properties)
     elseif name:lower() == "magicglass" then
-        return MagicGlass(data.x, data.y, data.width, data.height)
+        return MagicGlass(data.x, data.y, rect_data)
     elseif name:lower() == "warpdoor" then
         return WarpDoor(data.x, data.y, data.properties)
     elseif name:lower() == "darkfountain" then
         return DarkFountain(data.x, data.y)
     elseif name:lower() == "fountainfloor" then
-        return FountainFloor(data.x, data.y, data.width, data.height)
+        return FountainFloor(data.x, data.y, rect_data)
+    elseif name:lower() == "quicksave" then
+        return QuicksaveEvent(data.x, data.y, shape_data, data.properties["marker"])
+    elseif name:lower() == "sprite" then
+        local sprite = Sprite(data.properties["texture"], data.x, data.y)
+        sprite:play(data.properties["speed"], true)
+        sprite:setScale(data.properties["scalex"] or 2, data.properties["scaley"] or 2)
+        return sprite
     end
     if data.gid then
-        local gid, flip_x, flip_y = Utils.parseTileGid(data.gid)
-        local tileset, tile_id = self:getTileset(gid)
-        return TileObject(tileset, tile_id, data.x, data.y, data.width, data.height, math.rad(data.rotation or 0), flip_x, flip_y)
+        return self:createTileObject(data)
     end
 end
 
@@ -724,7 +786,7 @@ function Map:loadController(name, data)
         return Registry.createController(name, data)
     end
     -- Library object loading
-    for id,lib in pairs(Mod.libs) do
+    for id,lib in Kristal.iterLibraries() do
         local obj = Kristal.libCall(id, "loadController", self.world, name, data)
         if obj then
             return obj
@@ -754,7 +816,7 @@ function Map:populateTilesets(data)
                 error("Failed to load map \""..self.data.id.."\", tileset not found: \""..filename.."\"")
             end
         else
-            tileset = Tileset(tileset_data, self.full_map_path)
+            tileset = Tileset(tileset_data, self.full_map_path.."/"..self.data.id, self.full_map_path)
         end
         table.insert(self.tilesets, tileset)
         local gid = tileset_data.firstgid or (self.max_gid + 1)
@@ -766,10 +828,15 @@ end
 function Map:getTileset(id)
     if type(id) == "number" then
         id = Utils.parseTileGid(id)
-        for _,v in ipairs(self.tilesets) do
-            local first_id = self.tileset_gids[v]
-            if id >= first_id and id < first_id + v.id_count then
-                return v, (id - first_id)
+        for i = 1, #self.tilesets do
+            local tileset = self.tilesets[i]
+            local first_id = self.tileset_gids[tileset]
+            local next_id = first_id + tileset.id_count
+            if i < #self.tilesets then
+                next_id = self.tileset_gids[self.tilesets[i + 1]]
+            end
+            if id >= first_id and id < next_id then
+                return tileset, (id - first_id)
             end
         end
     elseif type(id) == "string" then
@@ -789,6 +856,14 @@ function Map:getTileObjectRect(data)
     local origin = Tileset.ORIGINS[tileset.object_alignment] or Tileset.ORIGINS["unspecified"]
 
     return data.x - (origin[1] * data.width), data.y - (origin[2] * data.height), data.width, data.height
+end
+
+function Map:createTileObject(data, x, y, width, height)
+    if data.gid then
+        local gid, flip_x, flip_y = Utils.parseTileGid(data.gid)
+        local tileset, tile_id = self:getTileset(gid)
+        return TileObject(tileset, tile_id, x or data.x, y or data.y, width or data.width, height or data.height, math.rad(data.rotation or 0), flip_x, flip_y)
+    end
 end
 
 return Map

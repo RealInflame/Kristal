@@ -1,7 +1,9 @@
+---@class HeartBurst : Object
+---@overload fun(...) : HeartBurst
 local HeartBurst, super = Class(Object)
 
 function HeartBurst:init(x, y, color)
-    super:init(self, x, y)
+    super.init(self, x, y)
 
     if color then
         self:setColor(color)
@@ -25,22 +27,22 @@ function HeartBurst:update()
 
     --self:setScale(2 - self.stretch, self.stretch + self.kill)
 
-    super:update(self)
+    super.update(self)
 end
 
 function HeartBurst:drawHeartOutline(scale_x, scale_y, alpha)
     local r,g,b,a = self:getDrawColor()
-    love.graphics.setColor(r, g, b, a * (alpha or 1))
-    love.graphics.draw(self.heart_outline_outer, 9, 9, 0, scale_x or 1, scale_y or 1, self.heart_outline_outer:getWidth()/2, self.heart_outline_outer:getHeight()/2)
-    love.graphics.setColor(1, 1, 1, a * (alpha or 1))
-    love.graphics.draw(self.heart_outline_inner, 9, 9, 0, scale_x or 1, scale_y or 1, self.heart_outline_inner:getWidth()/2, self.heart_outline_inner:getHeight()/2)
+    Draw.setColor(r, g, b, a * (alpha or 1))
+    Draw.draw(self.heart_outline_outer, 9, 9, 0, scale_x or 1, scale_y or 1, self.heart_outline_outer:getWidth()/2, self.heart_outline_outer:getHeight()/2)
+    Draw.setColor(1, 1, 1, a * (alpha or 1))
+    Draw.draw(self.heart_outline_inner, 9, 9, 0, scale_x or 1, scale_y or 1, self.heart_outline_inner:getWidth()/2, self.heart_outline_inner:getHeight()/2)
 end
 
 function HeartBurst:draw()
     local r,g,b,a = self:getDrawColor()
-    love.graphics.setColor(r, g, b, a * (0.8 - (self.burst / 6)))
+    Draw.setColor(r, g, b, a * (0.8 - (self.burst / 6)))
     local xscale, yscale = 0.25 + self.burst, (0.25 + (self.burst / 2))
-    love.graphics.draw(self.heart_outline_filled_inner, 9, 9, 0, xscale, yscale, self.heart_outline_filled_inner:getWidth()/2, self.heart_outline_filled_inner:getHeight()/2)
+    Draw.draw(self.heart_outline_filled_inner, 9, 9, 0, xscale, yscale, self.heart_outline_filled_inner:getWidth()/2, self.heart_outline_filled_inner:getHeight()/2)
 
     xscale, yscale = (0.25 + (self.burst / 1.5)), (0.25 + (self.burst / 3))
     self:drawHeartOutline(xscale, yscale, (1 - (self.burst / 6)))
@@ -48,7 +50,7 @@ function HeartBurst:draw()
     xscale, yscale = (0.2 + (self.burst / 2.5)), (0.2 + (self.burst / 5))
     self:drawHeartOutline(xscale, yscale, (1.2 - (self.burst / 6)))
 
-    super:draw(self)
+    super.draw(self)
 
     if self.burst > 10 then
         self:remove()

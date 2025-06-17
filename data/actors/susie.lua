@@ -1,7 +1,7 @@
 local actor, super = Class(Actor, "susie")
 
 function actor:init(style)
-    super:init(self)
+    super.init(self)
 
     local susie_style = style or Game:getConfig("susieStyle")
 
@@ -14,6 +14,10 @@ function actor:init(style)
 
     -- Hitbox for this actor in the overworld (optional, uses width and height by default)
     self.hitbox = {3, 31, 19, 14}
+    
+    -- A table that defines where the Soul should be placed on this actor if they are a player.
+    -- First value is x, second value is y.
+    self.soul_offset = {12.5, 24}
 
     -- Color for this actor used in outline areas (optional, defaults to red)
     self.color = {1, 0, 1}
@@ -83,6 +87,29 @@ function actor:init(style)
     if susie_style == 1 then
         self.animations["battle/transition"] = {"bangs_wall_right", 0, true}
     end
+
+    -- Tables of sprites to change into in mirrors
+    self.mirror_sprites = {
+        ["walk/down"] = "walk/up",
+        ["walk/up"] = "walk/down",
+        ["walk/left"] = "walk/left",
+        ["walk/right"] = "walk/right",
+
+        ["walk_unhappy/down"] = "walk_unhappy/up",
+        ["walk_unhappy/up"] = "walk_unhappy/down",
+        ["walk_unhappy/left"] = "walk_unhappy/left",
+        ["walk_unhappy/right"] = "walk_unhappy/right",
+
+        ["walk_bangs/down"] = "walk_bangs/up",
+        ["walk_bangs/up"] = "walk_bangs/down",
+        ["walk_bangs/left"] = "walk_bangs/left",
+        ["walk_bangs/right"] = "walk_bangs/right",
+
+        ["walk_bangs_unhappy/down"] = "walk_bangs_unhappy/up",
+        ["walk_bangs_unhappy/up"] = "walk_bangs_unhappy/down",
+        ["walk_bangs_unhappy/left"] = "walk_bangs_unhappy/left",
+        ["walk_bangs_unhappy/right"] = "walk_bangs_unhappy/right",
+    }
 
     -- Table of sprite offsets (indexed by sprite name)
     self.offsets = {

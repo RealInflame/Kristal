@@ -1,17 +1,16 @@
+---@class SpeechBubble : Object
+---@overload fun(...) : SpeechBubble
 local SpeechBubble, super = Class(Object)
 
 function SpeechBubble:init(text, x, y, options, speaker)
-    super:init(self, x, y, 0, 0)
+    super.init(self, x, y, 0, 0)
     options = options or {}
 
     self.layer = BATTLE_LAYERS["above_arena"] - 1
 
-    self.font = Assets.getFont("plain")
-    self.font_data = Assets.getFontData("plain")
-
     self.text = DialogueText("", 0, 0, 1, 1, {
         font = options["font"] or "plain",
-        style = options["style"] or "none",
+        style = "none",
         line_offset = 0,
     })
     self:addChild(self.text)
@@ -24,12 +23,13 @@ function SpeechBubble:init(text, x, y, options, speaker)
     self.speaker = speaker
     self.actor = options["actor"]
     if type(self.actor) == "string" then
-        self.actor = Registry.createActor(actor)
+        self.actor = Registry.createActor(self.actor)
     end
     if self.speaker then
         self.actor = self.speaker.actor
         self.speaker.bubble = self
     end
+    self.text.actor = self.actor
 
     self:setCallback(options["after"])
     self:setLineCallback(options["line_callback"])
@@ -98,7 +98,7 @@ function SpeechBubble:setStyle(style)
 end
 
 function SpeechBubble:onRemoveFromStage(stage)
-    super:onRemoveFromStage(self, stage)
+    super.onRemoveFromStage(self, stage)
     if self.speaker and self.speaker.bubble == self then
         self.speaker.bubble = nil
     end
@@ -109,19 +109,34 @@ function SpeechBubble:advance()
 end
 
 function SpeechBubble:setText(text, callback, line_callback)
-    if self.actor and self.actor:getVoice() then
-        if type(text) ~= "table" then
-            text = {text}
-        else
-            text = Utils.copy(text)
+    if self.actor then
+        if self.actor:getVoice() then
+            if type(text) ~= "table" then
+                text = {text}
+            else
+                text = Utils.copy(text)
+            end
+            for i,line in ipairs(text or {}) do
+                text[i] = "[voice:"..self.actor:getVoice().."]"..line
+            end
         end
-        for i,line in ipairs(text) do
-            text[i] = "[voice:"..self.actor:getVoice().."]"..line
+        if self.actor:getFont() then
+            if type(text) ~= "table" then
+                text = {text}
+            else
+                text = Utils.copy(text)
+            end
+            for i,line in ipairs(text or {}) do
+                if self.actor:getSpeechBubbleFontSize() then
+                    text[i] = "[font:"..self.actor:getFont()..","..self.actor:getSpeechBubbleFontSize().."]"..line
+                else
+                    text[i] = "[font:"..self.actor:getFont().."]"..line
+                end
+            end
         end
-        self.text:setText(text, callback or self.advance_callback, line_callback or self.line_callback)
-    else
-        self.text:setText(text, callback or self.advance_callback, line_callback or self.line_callback)
     end
+    
+    self.text:setText(text, callback or self.advance_callback, line_callback or self.line_callback)
 
     self:updateSize()
 end
@@ -175,7 +190,7 @@ function SpeechBubble:isDone()
 end
 
 function SpeechBubble:update()
-    super:update(self)
+    super.update(self)
 
     self.bubble_anim_timer = self.bubble_anim_timer + DT
 
@@ -206,7 +221,7 @@ function SpeechBubble:getDebugRectangle()
         -- TODO: FUck
         return {-bl + inner_left, -bt + inner_top, inner_width + bl + br + self:getTailWidth(), inner_height + bt + bb}
     end
-    return super:getDebugRectangle(self)
+    return super.getDebugRectangle(self)
 end
 
 function SpeechBubble:getSprite(name)
@@ -232,13 +247,6 @@ function SpeechBubble:getTailWidth()
 end
 
 function SpeechBubble:updateSize()
-    --[[local parsed = self.text.display_text
-
-    local _,lines = parsed:gsub("\n", "")
-
-    local w = self.font:getWidth(parsed)
-    local h = self.font_data["lineSpacing"] * (lines + 1) - (self.font_data["lineSpacing"] - self.font:getHeight())]]
-
     if self.auto then
         local w, h = self.text:getTextWidth(), self.text:getTextHeight()
 
@@ -255,7 +263,7 @@ end
 
 function SpeechBubble:draw()
     if not self.auto then
-        love.graphics.draw(self:getSprite(), 0, 0)
+        Draw.draw(self:getSprite(), 0, 0)
     else
         local inner_left = -self.padding["left"]
         local inner_top = -self.padding["top"]
@@ -286,17 +294,17 @@ function SpeechBubble:draw()
         local sprite_bottom_right = self:getSprite("bottom_right")
 
 
-        if sprite_fill then love.graphics.draw(sprite_fill, offset + inner_left, inner_top, 0, inner_width / sprite_fill:getWidth(), inner_height / sprite_fill:getHeight()) end
+        if sprite_fill then Draw.draw(sprite_fill, offset + inner_left, inner_top, 0, inner_width / sprite_fill:getWidth(), inner_height / sprite_fill:getHeight()) end
 
-        if sprite_left   then love.graphics.draw(sprite_left,   offset + inner_left - sprite_left:getWidth(), inner_top,                          0, 1,                                      inner_height / sprite_left:getHeight())  end
-        if sprite_top    then love.graphics.draw(sprite_top,    offset + inner_left,                          inner_top - sprite_top:getHeight(), 0, inner_width / sprite_top:getWidth(),    1)                                       end
-        if sprite_right  then love.graphics.draw(sprite_right,  offset + inner_right,                         inner_top,                          0, 1,                                      inner_height / sprite_right:getHeight()) end
-        if sprite_bottom then love.graphics.draw(sprite_bottom, offset + inner_left,                          inner_bottom,                       0, inner_width / sprite_bottom:getWidth(), 1)                                       end
+        if sprite_left   then Draw.draw(sprite_left,   offset + inner_left - sprite_left:getWidth(), inner_top,                          0, 1,                                      inner_height / sprite_left:getHeight())  end
+        if sprite_top    then Draw.draw(sprite_top,    offset + inner_left,                          inner_top - sprite_top:getHeight(), 0, inner_width / sprite_top:getWidth(),    1)                                       end
+        if sprite_right  then Draw.draw(sprite_right,  offset + inner_right,                         inner_top,                          0, 1,                                      inner_height / sprite_right:getHeight()) end
+        if sprite_bottom then Draw.draw(sprite_bottom, offset + inner_left,                          inner_bottom,                       0, inner_width / sprite_bottom:getWidth(), 1)                                       end
 
-        if sprite_top_left     then love.graphics.draw(sprite_top_left,     offset + inner_left - sprite_top_left:getWidth(),    inner_top - sprite_top_left:getHeight())  end
-        if sprite_top_right    then love.graphics.draw(sprite_top_right,    offset + inner_right,                                inner_top - sprite_top_right:getHeight()) end
-        if sprite_bottom_left  then love.graphics.draw(sprite_bottom_left,  offset + inner_left - sprite_bottom_left:getWidth(), inner_bottom)                             end
-        if sprite_bottom_right then love.graphics.draw(sprite_bottom_right, offset + inner_right,                                inner_bottom)                             end
+        if sprite_top_left     then Draw.draw(sprite_top_left,     offset + inner_left - sprite_top_left:getWidth(),    inner_top - sprite_top_left:getHeight())  end
+        if sprite_top_right    then Draw.draw(sprite_top_right,    offset + inner_right,                                inner_top - sprite_top_right:getHeight()) end
+        if sprite_bottom_left  then Draw.draw(sprite_bottom_left,  offset + inner_left - sprite_bottom_left:getWidth(), inner_bottom)                             end
+        if sprite_bottom_right then Draw.draw(sprite_bottom_right, offset + inner_right,                                inner_bottom)                             end
 
         local scale = 1
         if self.text.height < 35 then
@@ -306,15 +314,15 @@ function SpeechBubble:draw()
         if sprite_tail then
             if not self.right then
                 local right, _ = self:getSpriteSize("right")
-                love.graphics.draw(sprite_tail, inner_right + right, (self.text_height / 2 - 1 - (sprite_tail:getHeight() / 2)) * scale, 0, 1, scale)
+                Draw.draw(sprite_tail, inner_right + right, (self.text_height / 2 - 1 - (sprite_tail:getHeight() / 2)) * scale, 0, 1, scale)
             else
                 local left, _ = self:getSpriteSize("left")
-                love.graphics.draw(sprite_tail, offset + inner_left - left, (self.text_height / 2 - 1 - (sprite_tail:getHeight() / 2)) * scale, 0, -1, scale)
+                Draw.draw(sprite_tail, offset + inner_left - left, (self.text_height / 2 - 1 - (sprite_tail:getHeight() / 2)) * scale, 0, -1, scale)
             end
         end
     end
 
-    super:draw(self)
+    super.draw(self)
 end
 
 return SpeechBubble

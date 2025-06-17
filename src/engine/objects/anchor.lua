@@ -1,7 +1,9 @@
+---@class Anchor : Object
+---@overload fun(...) : Anchor
 local Anchor, super = Class(Object)
 
 function Anchor:init(ox, oy)
-    super:init(self, 0, 0)
+    super.init(self, 0, 0)
 
     self.ox = ox
     self.oy = oy
@@ -21,7 +23,7 @@ function Anchor:applyTransformTo(transform)
     local last_x, last_y = self.x, self.y
     self.x = self.parent.width * self.ox
     self.y = self.parent.height * self.oy
-    super:applyTransformTo(self, transform)
+    super.applyTransformTo(self, transform)
     self.x, self.y = last_x, last_y
 end
 

@@ -1,7 +1,9 @@
+---@class AfterImage : Object
+---@overload fun(...) : AfterImage
 local AfterImage, super = Class(Object)
 
 function AfterImage:init(sprite, fade, speed)
-    super:init(self, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT)
+    super.init(self, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT)
 
     self.sprite = sprite
 
@@ -9,15 +11,15 @@ function AfterImage:init(sprite, fade, speed)
     self:fadeOutSpeedAndRemove(speed)
 
     self.canvas = love.graphics.newCanvas(SCREEN_WIDTH, SCREEN_HEIGHT)
-    Draw.setCanvas(self.canvas)
+    Draw.pushCanvas(self.canvas)
     love.graphics.push()
     love.graphics.origin()
     love.graphics.clear()
     love.graphics.applyTransform(self.sprite:getFullTransform())
-    love.graphics.setColor(self.sprite:getDrawColor())
+    Draw.setColor(self.sprite:getDrawColor())
     self.sprite:draw()
     love.graphics.pop()
-    Draw.setCanvas()
+    Draw.popCanvas()
 
     local sox, soy = self.sprite:getScaleOrigin()
     local rox, roy = self.sprite:getRotationOrigin()
@@ -33,8 +35,8 @@ function AfterImage:onAdd(parent)
     local sibling
 
     local other_parents = self.sprite:getHierarchy()
-    for _,v in ipairs(self:getHierarchy()) do
-        for i,o in ipairs(other_parents) do
+    for _, v in ipairs(self:getHierarchy()) do
+        for i, o in ipairs(other_parents) do
             if o.parent and o.parent == v then
                 sibling = o
                 break
@@ -57,12 +59,12 @@ function AfterImage:applyTransformTo(transform)
     if self.parent then
         transform:reset()
     end
-    super:applyTransformTo(self, transform)
+    super.applyTransformTo(self, transform)
 end
 
 function AfterImage:draw()
-    love.graphics.draw(self.canvas)
-    super:draw(self)
+    Draw.draw(self.canvas)
+    super.draw(self)
 end
 
 return AfterImage

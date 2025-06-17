@@ -1,16 +1,16 @@
--- replaces mod list with "Start game", should be a string of the mod id
-TARGET_MOD = nil
-
-
 -- Dont replace state variables if we are hotswapping
 if HOTSWAPPING then return end
 
 HOTSWAPPING = false
 
-FRAMERATE = 60
+DISCORD_RPC_ID = "1174736572000776252"
+DISCORD_RPC_AVAILABLE = false
+DISCORD_RPC_PRESENCE = {}
 
-BASE_DT = (1/60)
-DT = (1/60)
+FRAMERATE = 30
+
+BASE_DT = (1/30)
+DT = (1/30)
 DTMULT = DT * 30
 
 FPS = 0
@@ -32,9 +32,13 @@ CURRENT_SCALE_X = 1
 CURRENT_SCALE_Y = 1
 
 MOUSE_VISIBLE = false
+---@type love.Image?
 MOUSE_SPRITE = nil
 
 OVERLAY_OPEN = false
 NOCLIP = false
 
 REGISTRY_LOADED = false
+
+---@type string?
+COROUTINE_TRACEBACK = nil

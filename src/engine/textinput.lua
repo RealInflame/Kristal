@@ -1,3 +1,31 @@
+---@class TextInput
+---
+---@field input string[]
+---
+---@field active boolean
+---
+---@field multiline boolean
+---@field enter_submits boolean
+---@field clear_after_submit boolean
+---@field text_restriction (fun(char:string):string|boolean)?
+---
+---@field submit_callback fun()?
+---@field up_limit_callback fun()?
+---@field down_limit_callback fun()?
+---@field pressed_callback (fun(key:string):boolean|nil)?
+---@field text_callback fun(text:string)?
+---
+---@field selecting boolean
+---
+---@field flash_timer number
+---@field return_grace_timer number
+---
+---@field cursor_x number
+---@field cursor_x_tallest number
+---@field cursor_y number
+---@field cursor_select_x number
+---@field cursor_select_y number
+---
 local TextInput = {}
 local self = TextInput
 
@@ -11,6 +39,8 @@ self.down_limit_callback = nil
 self.pressed_callback = nil
 self.text_callback = nil
 
+---@param tbl string[]
+---@param options TextInput.inputOptions?
 function TextInput.attachInput(tbl, options)
     Kristal.showCursor()
     self.active = true
@@ -27,6 +57,7 @@ function TextInput.attachInput(tbl, options)
     self.text_callback = nil
 end
 
+---@param tbl string[]
 function TextInput.updateInput(tbl)
     self.input = tbl
 end
@@ -46,9 +77,16 @@ function TextInput.clear()
     self.reset(false)
 end
 
+---@class TextInput.inputOptions
+---@field multiline boolean?
+---@field enter_submits boolean?
+---@field clear_after_submit boolean?
+---@field text_restriction (fun(char:string):string|boolean)?
+
+---@param options TextInput.inputOptions|boolean|nil
 function TextInput.reset(options)
     if options ~= false then
-        options = options or {}
+        options = options or {} --[[@as TextInput.inputOptions]]
         -- Our defaults should allow text editor-like input
         if options.multiline          == nil then options.multiline          = true  end
         if options.enter_submits      == nil then options.enter_submits      = false end
@@ -65,6 +103,12 @@ function TextInput.reset(options)
     -- If the user doesn't want it, then they don't have to draw it
     self.flash_timer = 0
 
+    -- Most inputs will be entered through the confirm keybind, of which return
+    -- is a default bind. As this key can also be used to close the input, we
+    -- need a tiny timer that "blocks" return presses from submitting the text
+    -- immediately (only used to block text submission)
+    self.return_grace_timer = 2
+
     self.cursor_x = 0
     self.cursor_x_tallest = 0
     self.cursor_y = 1
@@ -78,7 +122,7 @@ function TextInput.submit()
     if self.submit_callback then
         self.submit_callback()
     else
-        print("WARNING: No submit callback set!")
+        Kristal.Console:warn("No submit callback set!")
     end
     if self.clear_after_submit then
         self.clear()
@@ -92,6 +136,7 @@ function TextInput.onTextInput(t)
     if self.text_callback then self.text_callback(t) end
 end
 
+---@return "selecting"|"stopped"|"not_selecting"
 function TextInput.checkSelecting()
     if Input.shift() then
         if not self.selecting then
@@ -110,6 +155,7 @@ function TextInput.checkSelecting()
     return "not_selecting"
 end
 
+---@param key string
 function TextInput.onKeyPressed(key)
     if not self.active then return end
     self.flash_timer = 0
@@ -132,6 +178,7 @@ function TextInput.onKeyPressed(key)
             if self.multiline and Input.shift() then
                 self.insertString("\n")
             else
+                if self.return_grace_timer > 0 then Input.clear("return", true) return end
                 self.submit()
             end
         else
@@ -340,8 +387,11 @@ function TextInput.update()
     if self.flash_timer > 1 then
         self.flash_timer = self.flash_timer - 1
     end
+
+    self.return_grace_timer = Utils.approach(self.return_grace_timer, 0, DTMULT)
 end
 
+---@return number start_position, number end_position
 function TextInput.ctrlLeft()
     local starting_position = self.cursor_x
     local ending_position = self.cursor_x
@@ -371,6 +421,7 @@ function TextInput.ctrlLeft()
     return starting_position, ending_position
 end
 
+---@return number start_position, number end_position
 function TextInput.ctrlRight()
     local starting_position, ending_position = self.cursor_x, self.cursor_x
 
@@ -398,6 +449,8 @@ function TextInput.ctrlRight()
     return starting_position, ending_position
 end
 
+---@param char string
+---@return boolean
 function TextInput.isPartOfWord(char)
     if char == "_" then return true end -- underscores are commonly used so we'll allow them in words
     if char == "-" then return true end -- same with dashes
@@ -422,13 +475,14 @@ function TextInput.sendCursorToStart()
     self.cursor_y = 1
 end
 
-function TextInput.sendCursorToStartOfLine(special_identing)
-    if cursor_x == 0 then
-        cursor_x_tallest = 0
+---@param special_indenting boolean?
+function TextInput.sendCursorToStartOfLine(special_indenting)
+    if self.cursor_x == 0 then
+        self.cursor_x_tallest = 0
         return
     end
 
-    if special_identing then
+    if special_indenting then
         -- Loop through the utf8 string and find the end of an indent
         local last_space = 0
         for i = 1, utf8.len(self.input[self.cursor_y]) do
@@ -519,6 +573,7 @@ function TextInput.removeSelection()
     self.selecting = false
 end
 
+---@return string
 function TextInput.getSelectedText()
     if not self.selecting then return "" end
 
@@ -549,6 +604,7 @@ function TextInput.getSelectedText()
 end
 
 
+---@param str string
 function TextInput.insertString(str)
 
     if self.text_restriction then
@@ -597,11 +653,19 @@ function TextInput.insertString(str)
     --self.cursor_x = self.cursor_y + utf8.len(str)
 end
 
+---@class TextInput.drawOptions
+---@field x number?
+---@field y number?
+---@field font love.Font?
+---@field get_prefix (fun(prefix:"single"|"start"|"end"|"middle"):string)?
+---@field print fun(text:string, x:number, y:number)?
+
+---@param options TextInput.drawOptions
 function TextInput.draw(options)
     local off_x = options["x"] or 0
     local off_y = options["y"] or 0
     local font = options["font"] or Assets.getFont("main_mono", 16)
-    local get_prefix = options["get_prefix"] or function() return "" end
+    local get_prefix = options["get_prefix"] or function(prefix) return "" end
     local print_func = options["print"] or love.graphics.print
 
     local base_off = (options["prefix_width"] or 0) + off_x
@@ -613,7 +677,7 @@ function TextInput.draw(options)
     local cursor_pos_y = off_y + ((self.cursor_y - 1) * font:getHeight())
 
     if self.selecting then
-        love.graphics.setColor(0, 0.5, 0.5, 1)
+        Draw.setColor(0, 0.5, 0.5, 1)
 
         local cursor_sel_x = base_off
         if self.cursor_select_x > 0 then
@@ -653,7 +717,7 @@ function TextInput.draw(options)
         end
     end
 
-    love.graphics.setColor(1, 1, 1, 1)
+    Draw.setColor(1, 1, 1, 1)
     for i, text in ipairs(self.input) do
         local prefix = ""
         if #self.input == 1 then
@@ -671,7 +735,7 @@ function TextInput.draw(options)
         print_func(text, base_off, off_y + (i - 1) * font:getHeight())
     end
 
-    love.graphics.setColor(1, 0, 1, 1)
+    Draw.setColor(1, 0, 1, 1)
     if (TextInput.flash_timer < 0.5) and self.active then
         if self.cursor_x == utf8.len(self.input[self.cursor_y]) then
             print_func("_", cursor_pos_x, cursor_pos_y)

@@ -1,7 +1,7 @@
 local spell, super = Class(Spell, "dual_heal")
 
 function spell:init()
-    super:init(self)
+    super.init(self)
 
     -- Display name
     self.name = "Dual Heal"
@@ -9,7 +9,7 @@ function spell:init()
     self.cast_name = nil
 
     -- Battle description
-    self.effect = "Heal All\n30 HP"
+    self.effect = "Heal All"
     -- Menu description
     self.description = "Heavenly light restores a little HP to\nall party members. Depends on Magic."
 

@@ -1,7 +1,9 @@
+---@class LightStatMenu : Object
+---@overload fun(...) : LightStatMenu
 local LightStatMenu, super = Class(Object)
 
 function LightStatMenu:init()
-    super:init(self, 212, 76, 298, 370)
+    super.init(self, 212, 76, 298, 370)
 
     self.draw_children_below = 0
 
@@ -25,12 +27,12 @@ function LightStatMenu:update()
         return
     end
 
-    super:update(self)
+    super.update(self)
 end
 
 function LightStatMenu:draw()
     love.graphics.setFont(self.font)
-    love.graphics.setColor(PALETTE["world_text"])
+    Draw.setColor(PALETTE["world_text"])
 
     local chara = Game.party[1]
 
@@ -53,7 +55,7 @@ function LightStatMenu:draw()
 
     love.graphics.print(Game:getConfig("lightCurrency"):upper()..": "..Game.lw_money, 4, 328)
 
-    super:draw(self)
+    super.draw(self)
 end
 
 return LightStatMenu

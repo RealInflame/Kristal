@@ -1,7 +1,7 @@
 --- The base class of all objects in Kristal. \
 --- When added to the stage, an object will be updated and rendered.
 ---
----@class Object
+---@class Object : Class
 ---@field x      number The horizontal position of the object, relative to its parent.
 ---@field y      number The vertical position of the object, relative to its parent.
 ---@field width  number The width of the object.
@@ -166,7 +166,7 @@ end
 function Object.uncacheFull(obj)
     if Object.CACHE_TRANSFORMS then
         Object.CACHED_FULL[obj] = nil
-        for _,child in ipairs(obj.children) do
+        for _, child in ipairs(obj.children) do
             Object.uncacheFull(child)
         end
     end
@@ -193,7 +193,7 @@ function Object:init(x, y, width, height)
     self:resetGraphics()
 
     -- Various draw properties
-    self.color = {1, 1, 1}
+    self.color = { 1, 1, 1 }
     self.alpha = 1
     self.scale_x = 1
     self.scale_y = 1
@@ -279,7 +279,8 @@ function Object:init(x, y, width, height)
     self.children = {}
 end
 
---[[ Common overrides ]]--
+--[[ Common overrides ]]
+--
 
 --- *(Override)* Called every frame by its parent if the object is active. \
 --- By default, updates its physics and graphics tables, and its children.
@@ -318,20 +319,21 @@ function Object:onAddToStage(stage) end
 ---@param stage Object The Stage object that the object was a child of.
 function Object:onRemoveFromStage(stage) end
 
---[[ Common functions ]]--
+--[[ Common functions ]]
+--
 
 ---@class physics_table
----@field speed_x   number The horizontal speed of the object, in pixels per frame at 30FPS.
----@field speed_y   number The vertical speed of the object, in pixels per frame at 30FPS.
----@field speed     number The speed the object will move in the angle of its direction, in pixels per frame at 30FPS.
----@field direction number The angle at which the object will move, in radians.
----@field friction  number The amount the object's speed will slow down, per frame at 30FPS.
----@field gravity   number The amount the object's speed will accelerate towards its gravity direction, per frame at 30FPS.
----@field gravity_direction number The angle at which the object's gravity will accelerate towards, in radians.
----@field spin      number The amount this object's direction will change, in radians per frame at 30FPS.
+---@field speed_x           number  The horizontal speed of the object, in pixels per frame at 30FPS.
+---@field speed_y           number  The vertical speed of the object, in pixels per frame at 30FPS.
+---@field speed             number  The speed the object will move in the angle of its direction, in pixels per frame at 30FPS.
+---@field direction         number  The angle at which the object will move, in radians.
+---@field friction          number  The amount the object's speed will slow down, per frame at 30FPS.
+---@field gravity           number  The amount the object's speed will accelerate towards its gravity direction, per frame at 30FPS.
+---@field gravity_direction number  The angle at which the object's gravity will accelerate towards, in radians.
+---@field spin              number  The amount this object's direction will change, in radians per frame at 30FPS.
 ---@field match_rotation    boolean Whether the object's rotation should also define its direction. (Defaults to false)
----@field move_target?   table A table containing data defined by `Object:slideTo()` or `Object:slideToSpeed()`.
----@field move_path?     table A table containing data defined by `Object:slidePath()`.
+---@field move_target?      table   A table containing data defined by `Object:slideTo()` or `Object:slideToSpeed()`.
+---@field move_path?        table   A table containing data defined by `Object:slidePath()`.
 
 --- Resets all of the object's `physics` table values to their default values, \
 --- making it so it will stop moving if it was before.
@@ -348,7 +350,7 @@ function Object:resetPhysics()
         friction = 0,
         -- The amount this object should accelerate in the gravity direction (also per frame at 30 fps)
         gravity = 0,
-        gravity_direction = math.pi/2, -- down
+        gravity_direction = math.pi / 2, -- down
 
         -- The amount this object's direction rotates (per frame at 30 fps)
         spin = 0,
@@ -367,20 +369,25 @@ end
 ---@param physics physics_table A table of values to set for the object's physics.
 function Object:setPhysics(physics)
     self:resetPhysics()
-    for k,v in pairs(physics) do
+    for k, v in pairs(physics) do
         self.physics[k] = v
     end
 end
 
 ---@class graphics_table
----@field fade      number The amount the object's alpha should approach its target value, per frame at 30FPS.
----@field fade_to   number The target alpha to approach.
----@field fade_callback function|nil A function that will be called when the object's alpha reaches its target value.
----@field grow_x    number The amount the object's `scale_x` will increase, per frame at 30FPS.
----@field grow_y    number The amount the object's `scale_y` will increase, per frame at 30FPS.
----@field grow      number The amount the object's `scale_x` and `scale_y` will increase, per frame at 30FPS.
----@field remove_shrunk boolean If true, the object will remove itself if its scale goes below 0. (Defaults to false)
----@field spin      number The amount the object's `rotation` will change, per frame at 30FPS.
+---@field fade           number       The amount the object's alpha should approach its target value, per frame at 30FPS.
+---@field fade_to        number       The target alpha to approach.
+---@field fade_callback  function|nil A function that will be called when the object's alpha reaches its target value.
+---@field grow_x         number       The amount the object's `scale_x` will increase, per frame at 30FPS.
+---@field grow_y         number       The amount the object's `scale_y` will increase, per frame at 30FPS.
+---@field grow           number       The amount the object's `scale_x` and `scale_y` will increase, per frame at 30FPS.
+---@field remove_shrunk  boolean      If true, the object will remove itself if its scale goes below 0. (Defaults to false)
+---@field spin           number       The amount the object's `rotation` will change, per frame at 30FPS.
+---@field shake_x        number       The amount the object will shake in the `x` axis, per frame at 30FPS.
+---@field shake_y        number       The amount the object will shake in the `y` axis, per frame at 30FPS.
+---@field shake_friction number       The amount the object's shake will slow down, per frame at 30FPS.
+---@field shake_delay    number       The time it takes for the object to invert its shake direction, in seconds.
+---@field shake_timer    number       *(Used internally)* A timer used to invert the object's shake direction.
 
 --- Resets all of the object's `graphics` table values to their default values, \
 --- making it so it will stop transforming if it was before.
@@ -402,7 +409,17 @@ function Object:resetGraphics()
         remove_shrunk = false,
 
         -- Amount this object rotates (per frame at 30 fps)
-        spin = 0
+        spin = 0,
+
+        -- Shake amount
+        shake_x = 0,
+        shake_y = 0,
+        -- Shake friction (How much the shake decreases)
+        shake_friction = 0,
+        -- Shake speed (How much time it takes to invert the shake)
+        shake_delay = 2 / 30,
+        -- Shake timer (used to invert the shake)
+        shake_timer = 0
     }
 end
 
@@ -410,7 +427,7 @@ end
 ---@param graphics graphics_table A table of values to set for the object's graphics transformation.
 function Object:setGraphics(graphics)
     self:resetGraphics()
-    for k,v in pairs(graphics) do
+    for k, v in pairs(graphics) do
         self.graphics[k] = v
     end
 end
@@ -456,14 +473,29 @@ function Object:fadeOutSpeedAndRemove(speed)
     self.graphics.fade_callback = self.remove
 end
 
+--- Makes the object shake by the specified amount.
+---@param x?        number   The amount of shake in the `x` direction. (Defaults to `4`)
+---@param y?        number   The amount of shake in the `y` direction. (Defaults to `0`)
+---@param friction? number   The amount that the shake should decrease by, per frame at 30FPS. (Defaults to `1`)
+---@param delay?    number   The time it takes for the object to invert its shake direction, in seconds. (Defaults to `1/30`)
+function Object:shake(x, y, friction, delay)
+    self.graphics.shake_x = x or 4
+    self.graphics.shake_y = y or 0
+    self.graphics.shake_friction = friction or 1
+    self.graphics.shake_delay = delay or (1 / 30)
+    self.graphics.shake_timer = 0
+end
+
+--- Stops the object from shaking.
+function Object:stopShake()
+    self.graphics.shake_x = 0
+    self.graphics.shake_y = 0
+end
+
 --- Moves the object's `x` and `y` values to the new specified position over `time` seconds.
+---@overload fun(self:Object, marker:string, time?:number, ease?:string, after?:function): success:boolean
 ---@param x      number   The new `x` value to approach.
 ---@param y      number   The new `y` value to approach.
----@param time?  number   The amount of time, in seconds, that the slide should take. (Defaults to 1 second)
----@param ease?  string   The ease type to use when moving to the new position. (Defaults to "linear")
----@param after? function A function that will be called when the target position is reached. Receives no arguments.
----@return boolean success Whether the sliding will occur. False if the object's current position is already at the specified position, and true otherwise.
----@overload fun(self:Object, marker:string, time?:number, ease?:string, after?:function): success:boolean
 ---@param marker string   A map marker whose position the object should approach.
 ---@param time?  number   The amount of time, in seconds, that the slide should take. (Defaults to 1 second)
 ---@param ease?  string   The ease type to use when moving to the new position. (Defaults to "linear")
@@ -472,7 +504,9 @@ end
 function Object:slideTo(x, y, time, ease, after)
     -- Ability to specify World marker for convenience in cutscenes
     if type(x) == "string" then
+        ---@diagnostic disable-next-line: cast-local-type
         after = ease
+        ---@diagnostic disable-next-line: cast-local-type
         ease = time
         time = y
         x, y = Game.world.map:getMarker(x)
@@ -480,7 +514,16 @@ function Object:slideTo(x, y, time, ease, after)
     time = time or 1
     self.physics.move_path = nil
     if self.x ~= x or self.y ~= y then
-        self.physics.move_target = {x = x, y = y, time = time, timer = 0, start_x = self.x, start_y = self.y, ease = ease or "linear", after = after}
+        self.physics.move_target = {
+            x = x,
+            y = y,
+            time = time,
+            timer = 0,
+            start_x = self.x,
+            start_y = self.y,
+            ease = ease or "linear",
+            after = after
+        }
         return true
     else
         if after then
@@ -491,11 +534,9 @@ function Object:slideTo(x, y, time, ease, after)
 end
 
 --- Moves the object's `x` and `y` values to the new specified position at a speed of `speed` pixels per frame.
+---@overload fun(self:Object, marker:string, speed?:number, after?:function): success:boolean
 ---@param x      number   The new `x` value to approach.
 ---@param y      number   The new `y` value to approach.
----@param speed? number   The amount that the object's `x` and `y` should approach the specified position, in pixels per frame at 30FPS. (Defaults to 4)
----@param after? function A function that will be called when the target position is reached. Receives no arguments.
----@overload fun(self:Object, marker:string, time?:number, ease?:string, after?:function): success:boolean
 ---@param marker string   A map marker whose position the object should approach.
 ---@param speed? number   The amount that the object's `x` and `y` should approach the specified position, in pixels per frame at 30FPS. (Defaults to 4)
 ---@param after? function A function that will be called when the target position is reached. Receives no arguments.
@@ -503,6 +544,7 @@ end
 function Object:slideToSpeed(x, y, speed, after)
     -- Ability to specify World marker for convenience in cutscenes
     if type(x) == "string" then
+        ---@diagnostic disable-next-line: cast-local-type
         after = speed
         speed = y
         x, y = Game.world.map:getMarker(x)
@@ -510,7 +552,7 @@ function Object:slideToSpeed(x, y, speed, after)
     speed = speed or 4
     self.physics.move_path = nil
     if self.x ~= x or self.y ~= y then
-        self.physics.move_target = {x = x, y = y, speed = speed, after = after}
+        self.physics.move_target = { x = x, y = y, speed = speed, after = after }
         return true
     else
         if after then
@@ -523,7 +565,7 @@ end
 --@param options? table A table defining additional properties that the path should follow:
 --| "time" # The amount of time, in seconds, that the object should take to travel along the full path.
 --| "speed" # The speed at which the object should travel along the path, in pixels per frame at 30FPS.
---| "ease" # 
+--| "ease" #
 --| "relative" # Whether the path should be relative to the object's current position, or simply set its position directly.
 --| "loop" # Whether the path should loop back to the first point when reaching the end, or if it should stop.
 --| "reverse" # If true, reverse all of the points on the path.
@@ -549,14 +591,14 @@ function Object:slidePath(path, options)
     -- Ability to specify World path for convenience in cutscenes
     if type(path) == "string" then
         local map_path = Game.world.map:getPath(path)
-        assert(map_path,                    "No path found for slidePath: " .. path)
+        assert(map_path, "No path found for slidePath: " .. path)
         assert(map_path.shape ~= "ellipse", "slidePath not compatible with ellipse paths")
         path = {}
         for _, point in ipairs(map_path.points) do
             if not options["relative"] then
-                table.insert(path, {point.x, point.y})
+                table.insert(path, { point.x, point.y })
             else
-                table.insert(path, {point.x - map_path.points[1].x, point.y - map_path.points[1].y})
+                table.insert(path, { point.x - map_path.points[1].x, point.y - map_path.points[1].y })
             end
         end
         if map_path.closed and options["loop"] == nil then
@@ -564,13 +606,8 @@ function Object:slidePath(path, options)
         end
     end
 
-    if not options["relative"] then
-        local dist_start = Utils.dist(self.x, self.y, path[1    ][1], path[1    ][2])
-        local dist_end   = Utils.dist(self.x, self.y, path[#path][1], path[#path][2])
-
-        if options["reverse"] or (options["reverse"] == nil and dist_end < dist_start) then
-            path = Utils.reverse(path)
-        end
+    if not options["relative"] and options["reverse"] then
+        path = Utils.reverse(path)
     end
 
     if options["skip"] then
@@ -588,7 +625,7 @@ function Object:slidePath(path, options)
         if options["snap"] or options["loop"] then
             self:setPosition(path[1][1], path[1][2])
         elseif self.x ~= path[1][1] or self.y ~= path[1][2] then
-            table.insert(path, 1, {self.x, self.y})
+            table.insert(path, 1, { self.x, self.y })
         end
     end
 
@@ -630,7 +667,10 @@ end
 --- Sets the object's `x` and `y` values to the specified position.
 ---@param x number The value to set `x` to.
 ---@param y number The value to set `y` to.
-function Object:setPosition(x, y) self.x = x or 0; self.y = y or 0 end
+function Object:setPosition(x, y)
+    self.x = x or 0; self.y = y or 0
+end
+
 --- Returns the position of the object.
 ---@return number x The `x` position of the object.
 ---@return number y The `y` position of the object.
@@ -639,7 +679,10 @@ function Object:getPosition() return self.x, self.y end
 --- Sets the object's `width` and `height` values to the specified size.
 ---@param width   number The value to set `width` to.
 ---@param height? number The value to set `height` to. (Defaults to the `width` parameter)
-function Object:setSize(width, height) self.width = width or 0; self.height = height or width or 0 end
+function Object:setSize(width, height)
+    self.width = width or 0; self.height = height or width or 0
+end
+
 --- Returns the size of the object.
 ---@return number width The `width` value of the object.
 ---@return number height The `height` value of the object.
@@ -648,9 +691,11 @@ function Object:getSize() return self.width, self.height end
 --- Returns the width of the object, accounting for scale.
 ---@return number width The `width` of the object multiplied by its `scale_x`.
 function Object:getScaledWidth() return self.width * self.scale_x end
+
 --- Returns the height of the object, accounting for scale.
 ---@return number height The `height` of the object multiplied by its `scale_y`.
 function Object:getScaledHeight() return self.height * self.scale_y end
+
 --- Returns the size of the object, accounting for scale.
 ---@return number width The `width` of the object multiplied by its `scale_x`.
 ---@return number height The `height` of the object multiplied by its `scale_y`.
@@ -659,26 +704,30 @@ function Object:getScaledSize() return self:getScaledWidth(), self:getScaledHeig
 --- Sets the object's `scale_x` and `scale_y` values to the specified scale.
 ---@param x  number The value to set `scale_x` to.
 ---@param y? number The value to set `scale_y` to. (Defaults to the `x` parameter)
-function Object:setScale(x, y) self.scale_x = x or 1; self.scale_y = y or x or 1 end
+function Object:setScale(x, y)
+    self.scale_x = x or 1; self.scale_y = y or x or 1
+end
+
 --- Returns the scale of the object.
 ---@return number x The `scale_x` value of the object.
 ---@return number y The `scale_y` value of the object.
 function Object:getScale() return self.scale_x, self.scale_y end
 
 --- Sets the object's `color` and `alpha` values to the specified color.
+---@overload fun(self:Object, color:{r:number, g:number, b:number, a?:number})
 ---@param r  number The red value to set for the object's `color`.
 ---@param g  number The green value to set for the object's `color`.
 ---@param b  number The blue value to set for the object's `color`.
 ---@param a? number The value to set `alpha` to. (Doesn't change alpha if unspecified)
----@overload fun(self:Object, color:{r:number, g:number, b:number, a?:number})
 ---@param color table The value to set `color` to. Can optionally define a 4th value to set alpha.
 function Object:setColor(r, g, b, a)
     if type(r) == "table" then
         r, g, b, a = unpack(r)
     end
-    self.color = {r, g, b};
+    self.color = { r, g, b }
     self.alpha = a or self.alpha
 end
+
 --- Returns the values of the object's `color` and `alpha` values.
 ---@return number r The red value of the object's `color`.
 ---@return number g The green value of the object's `color`.
@@ -690,7 +739,10 @@ function Object:getColor() return self.color[1], self.color[2], self.color[3], s
 --- The origin set by this function will therefore be a ratio relative to the object's width and height.
 ---@param x  number The value to set `origin_x` to.
 ---@param y? number The value to set `origin_y` to. (Defaults to the `x` parameter)
-function Object:setOrigin(x, y) self.origin_x = x or 0; self.origin_y = y or x or 0; self.origin_exact = false end
+function Object:setOrigin(x, y)
+    self.origin_x = x or 0; self.origin_y = y or x or 0; self.origin_exact = false
+end
+
 --- Returns the origin of the object, simplifying to be a ratio relative to its width and height if its current origin is exact.
 ---@return number x The horizontal origin of the object.
 ---@return number y The vertical origin of the object.
@@ -701,11 +753,15 @@ function Object:getOrigin()
         return self.origin_x / self.width, self.origin_y / self.height
     end
 end
+
 --- Sets the object's `origin_x` and `origin_y` values to the specified origin, and sets `origin_exact` to true. \
 --- The origin set by this function will therefore be in exact pixels.
 ---@param x  number The value to set `origin_x` to.
 ---@param y? number The value to set `origin_y` to. (Defaults to the `x` parameter)
-function Object:setOriginExact(x, y) self.origin_x = x or 0; self.origin_y = y or x or 0; self.origin_exact = true end
+function Object:setOriginExact(x, y)
+    self.origin_x = x or 0; self.origin_y = y or x or 0; self.origin_exact = true
+end
+
 --- Returns the origin of the object, multiplying to give the exact pixels if its current origin is not exact.
 ---@return number x The horizontal origin of the object.
 ---@return number y The vertical origin of the object.
@@ -721,7 +777,10 @@ end
 --- The scaling origin set by this function will therefore be a ratio relative to the object's width and height.
 ---@param x  number The value to set `scale_origin_x` to.
 ---@param y? number The value to set `scale_origin_y` to. (Defaults to the `x` parameter)
-function Object:setScaleOrigin(x, y) self.scale_origin_x = x or 0; self.scale_origin_y = y or x or 0; self.scale_origin_exact = false end
+function Object:setScaleOrigin(x, y)
+    self.scale_origin_x = x or 0; self.scale_origin_y = y or x or 0; self.scale_origin_exact = false
+end
+
 --- Returns the scaling origin of the object, simplifying to be a ratio relative to its width and height if its current scaling origin is exact. \
 --- If the object doesn't have a scaling origin defined, it will return `self:getOrigin()` instead.
 ---@return number x The horizontal scaling origin of the object.
@@ -735,11 +794,15 @@ function Object:getScaleOrigin()
         return (self.scale_origin_x or ox) / self.width, (self.scale_origin_y or oy) / self.height
     end
 end
+
 --- Sets the object's `scale_origin_x` and `scale_origin_y` values to the specified origin, and sets `scale_origin_exact` to true. \
 --- The scaling origin set by this function will therefore be in exact pixels.
 ---@param x  number The value to set `scale_origin_x` to.
 ---@param y? number The value to set `scale_origin_y` to. (Defaults to the `x` parameter)
-function Object:setScaleOriginExact(x, y) self.scale_origin_x = x or 0; self.scale_origin_y = y or x or 0; self.scale_origin_exact = true end
+function Object:setScaleOriginExact(x, y)
+    self.scale_origin_x = x or 0; self.scale_origin_y = y or x or 0; self.scale_origin_exact = true
+end
+
 --- Returns the scaling origin of the object, multiplying to give the exact pixels if its current scaling origin is not exact. \
 --- If the object doesn't have a scaling origin defined, it will return `self:getOriginExact()` instead.
 ---@return number x The horizontal scaling origin of the object.
@@ -758,7 +821,10 @@ end
 --- The rotation origin set by this function will therefore be a ratio relative to the object's width and height.
 ---@param x  number The value to set `rotation_origin_x` to.
 ---@param y? number The value to set `rotation_origin_y` to. (Defaults to the `x` parameter)
-function Object:setRotationOrigin(x, y) self.rotation_origin_x = x or 0; self.rotation_origin_y = y or x or 0; self.rotation_origin_exact = false end
+function Object:setRotationOrigin(x, y)
+    self.rotation_origin_x = x or 0; self.rotation_origin_y = y or x or 0; self.rotation_origin_exact = false
+end
+
 --- Returns the rotation origin of the object, simplifying to be a ratio relative to its width and height if its current rotation origin is exact. \
 --- If the object doesn't have a rotation origin defined, it will return `self:getOrigin()` instead.
 ---@return number x The horizontal rotation origin of the object.
@@ -772,11 +838,15 @@ function Object:getRotationOrigin()
         return (self.rotation_origin_x or ox) / self.width, (self.rotation_origin_y or oy) / self.height
     end
 end
+
 --- Sets the object's `rotation_origin_x` and `rotation_origin_y` values to the specified origin, and sets `rotation_origin_exact` to true. \
 --- The rotation origin set by this function will therefore be in exact pixels.
 ---@param x  number The value to set `rotation_origin_x` to.
 ---@param y? number The value to set `rotation_origin_y` to. (Defaults to the `x` parameter)
-function Object:setRotationOriginExact(x, y) self.rotation_origin_x = x or 0; self.rotation_origin_y = y or x or 0; self.rotation_origin_exact = true end
+function Object:setRotationOriginExact(x, y)
+    self.rotation_origin_x = x or 0; self.rotation_origin_y = y or x or 0; self.rotation_origin_exact = true
+end
+
 --- Returns the rotation origin of the object, multiplying to give the exact pixels if its current rotation origin is not exact. \
 --- If the object doesn't have a rotation origin defined, it will return `self:getOriginExact()` instead.
 ---@return number x The horizontal rotation origin of the object.
@@ -795,7 +865,10 @@ end
 --- The camera origin set by this function will therefore be a ratio relative to the object's width and height.
 ---@param x  number The value to set `camera_origin_x` to.
 ---@param y? number The value to set `camera_origin_y` to. (Defaults to the `x` parameter)
-function Object:setCameraOrigin(x, y) self.camera_origin_x = x or 0; self.camera_origin_y = y or x or 0; self.camera_origin_exact = false end
+function Object:setCameraOrigin(x, y)
+    self.camera_origin_x = x or 0; self.camera_origin_y = y or x or 0; self.camera_origin_exact = false
+end
+
 --- Returns the camera origin of the object, simplifying to be a ratio relative to its width and height if its current camera origin is exact.
 ---@return number x The horizontal camera origin of the object.
 ---@return number y The vertical camera origin of the object.
@@ -806,11 +879,15 @@ function Object:getCameraOrigin()
         return self.camera_origin_x / self.width, self.camera_origin_y / self.height
     end
 end
+
 --- Sets the object's `camera_origin_x` and `camera_origin_y` values to the specified origin, and sets `camera_origin_exact` to true. \
 --- The camera origin set by this function will therefore be in exact pixels.
 ---@param x  number The value to set `camera_origin_x` to.
 ---@param y? number The value to set `camera_origin_y` to. (Defaults to the `x` parameter)
-function Object:setCameraOriginExact(x, y) self.camera_origin_x = x or 0; self.camera_origin_y = y or x or 0; self.camera_origin_exact = true end
+function Object:setCameraOriginExact(x, y)
+    self.camera_origin_x = x or 0; self.camera_origin_y = y or x or 0; self.camera_origin_exact = true
+end
+
 --- Returns the camera origin of the object, multiplying to give the exact pixels if its current camera origin is not exact.
 ---@return number x The horizontal camera origin of the object.
 ---@return number y The vertical camera origin of the object.
@@ -828,9 +905,12 @@ end
 function Object:isCameraAttachable() return true end
 
 --- Sets the object's `parallax_x` and `parallax_y` to the specified parallax.
----@param x number The value to set `parallax_x` to.
----@param y number The value to set `parallax_y` to.
-function Object:setParallax(x, y) self.parallax_x = x or 1; self.parallax_y = y or 1 end
+---@param x  number The value to set `parallax_x` to.
+---@param y? number The value to set `parallax_y` to. (Defaults to the `x` parameter)
+function Object:setParallax(x, y)
+    self.parallax_x = x or 1; self.parallax_y = y or x or 1
+end
+
 --- Returns the parallax of the object.
 ---@return number x The `parallax_x` value of the object.
 ---@return number y The `parallax_y` value of the object.
@@ -839,7 +919,10 @@ function Object:getParallax() return self.parallax_x or 1, self.parallax_y or 1 
 --- Sets the object's `parallax_origin_x` and `parallax_origin_y` values to the specified origin.
 ---@param x number The value to set `parallax_origin_x` to.
 ---@param y number The value to set `parallax_origin_y` to.
-function Object:setParallaxOrigin(x, y) self.parallax_origin_x = x; self.parallax_origin_y = y end
+function Object:setParallaxOrigin(x, y)
+    self.parallax_origin_x = x; self.parallax_origin_y = y
+end
+
 --- Returns the parallax origin of the object.
 ---@return number x The `parallax_origin_x` value of the object.
 ---@return number y The `parallax_origin_y` value of the object.
@@ -848,6 +931,7 @@ function Object:getParallaxOrigin() return self.parallax_origin_x, self.parallax
 --- Returns the layer of the object.
 ---@return number The `layer` value of the object.
 function Object:getLayer() return self.layer end
+
 --- Sets the object's `layer`, and updates its position in its parent's children list.
 ---@param layer number The value to set `layer` to.
 function Object:setLayer(layer)
@@ -870,6 +954,7 @@ function Object:setCutout(left, top, right, bottom)
     self.cutout_right = right
     self.cutout_bottom = bottom
 end
+
 --- Returns the object's `cutout` values.
 ---@return number|nil The `cutout_left` value of the object.
 ---@return number|nil The `cutout_top` value of the object.
@@ -880,9 +965,9 @@ function Object:getCutout()
 end
 
 --- Sets the object's speed in its `physics` table.
+---@overload fun(self:Object, speed:number)
 ---@param x number The value to set `physics.speed_x` to.
 ---@param y number The value to set `physics.speed_y` to.
----@overload fun(self:Object, speed:number)
 ---@param speed number The value to set `physics.speed` to.
 function Object:setSpeed(x, y)
     if x and y then
@@ -895,6 +980,7 @@ function Object:setSpeed(x, y)
         self.physics.speed_y = 0
     end
 end
+
 --- Returns the velocity and direction of the object's physics, converting `physics.speed_x` and `physics.speed_y` if necessary.
 ---@return number speed     The linear speed the object moves at.
 ---@return number direction The direction the object is moving in.
@@ -911,6 +997,7 @@ function Object:getSpeedDir()
     end
     return 0, 0
 end
+
 --- Returns the horizontal and vertical speed of the object's physics, converting `physics.speed` and `physics.direction` if necessary
 ---@return number speed_x The horizontal speed of the object.
 ---@return number speed_y The vertical speed of the object.
@@ -935,6 +1022,7 @@ function Object:setDirection(dir)
         self.physics.direction = dir
     end
 end
+
 --- Returns the object's `physics.direction`, or the object's `rotation` if `physics.match_rotation` is true.
 ---@return number dir The movement direction of the object.
 function Object:getDirection()
@@ -942,15 +1030,16 @@ function Object:getDirection()
 end
 
 --- Returns the dimensions of the object's `collider` if that collider is a Hitbox.
----@return number The `x` position of the collider, relative to the object.
----@return number The `y` position of the collider, relative to the object.
----@return number The `width` of the collider, in pixels.
----@return number The `height` of the collider, in pixels.
+---@return number|nil x The `x` position of the collider, relative to the object.
+---@return number|nil y The `y` position of the collider, relative to the object.
+---@return number|nil width The `width` of the collider, in pixels.
+---@return number|nil height The `height` of the collider, in pixels.
 function Object:getHitbox()
     if self.collider and self.collider:includes(Hitbox) then
         return self.collider.x, self.collider.y, self.collider.width, self.collider.height
     end
 end
+
 --- Sets the object's `collider` to a new Hitbox with the specified dimensions.
 ---@param x number The `x` position of the collider, relative to the object.
 ---@param y number The `y` position of the collider, relative to the object.
@@ -965,7 +1054,7 @@ end
 ---@return number x The horizontal position to use.
 ---@return number y The vertical position to use.
 function Object:getSortPosition()
-    return self:getRelativePos(self.width/2, self.height)
+    return self:getRelativePos(self.width / 2, self.height)
 end
 
 --- *(Override)* \
@@ -979,7 +1068,7 @@ end
 --- By default, returns `self.debug_rect`, or a rectangle with the same width and height as the object if `self.debug_rect` is `nil`.
 ---@return table rectangle A table containing 4 number values, defining the `x`, `y`, `width` and `height` of the selection rectangle.
 function Object:getDebugRectangle()
-    return self.debug_rect or {0, 0, self.width, self.height}
+    return self.debug_rect or { 0, 0, self.width, self.height }
 end
 
 --- *(Override)* \
@@ -988,6 +1077,7 @@ end
 function Object:getDebugInfo()
     return {}
 end
+
 --- *(Override)* Defines options that can be used when selecting the object with the Object Selection debug feature. \
 --- By default, defines options that all objects use.
 ---@param context ContextMenu The menu object containing the debug options that can be used.
@@ -1024,7 +1114,7 @@ function Object:getDebugOptions(context)
     if self.visible then
         context:addMenuItem("Hide", "Hide this object.", function() self.visible = false end)
     else
-        context:addMenuItem("Show", "Show this object.", function() self.visible = true  end)
+        context:addMenuItem("Show", "Show this object.", function() self.visible = true end)
     end
     context:addMenuItem("Explode", "'cuz it's funny", function() self:explode() end)
     return context
@@ -1058,6 +1148,7 @@ function Object:setScreenPos(x, y)
         self:setPosition(x, y)
     end
 end
+
 --- Returns the object's position relative to the topleft of the game window.
 ---@return number x The `x` position of the object.
 ---@return number y The `y` position of the object.
@@ -1070,8 +1161,8 @@ function Object:getScreenPos()
 end
 
 --- Returns the specified position for the object, relative to the object's stage.
----@param x number The `x` position relative to the object.
----@param y number The `y` position relative to the object.
+---@param x? number The `x` position relative to the object.
+---@param y? number The `y` position relative to the object.
 ---@return number x The new `x` position relative to the object's stage.
 ---@return number y The new `y` position relative to the object's stage.
 function Object:localToScreenPos(x, y)
@@ -1079,8 +1170,8 @@ function Object:localToScreenPos(x, y)
 end
 
 --- Returns the specified position for the object's stage, relative to this object.
----@param x number The `x` position relative to the object's stage.
----@param y number The `y` position relative to the object's stage.
+---@param x? number The `x` position relative to the object's stage.
+---@param y? number The `y` position relative to the object's stage.
 ---@return number x The new `x` position relative to the object.
 ---@return number y The new `y` position relative to the object.
 function Object:screenToLocalPos(x, y)
@@ -1088,8 +1179,8 @@ function Object:screenToLocalPos(x, y)
 end
 
 --- Returns the specified position for the object, relative to another object.
----@param x      number The `x` position relative to the object.
----@param y      number The `y` position relative to the object.
+---@param x?     number The `x` position relative to the object.
+---@param y?     number The `y` position relative to the object.
 ---@param other? Object The object the returned values should be relative to.
 ---@return number x The new `x` position relative to the `other` object.
 ---@return number y The new `y` position relative to the `other` object.
@@ -1152,9 +1243,10 @@ end
 --- Adds a DrawFX to the object. \
 --- DrawFX are classes that can apply visual effects to an object when drawing it. \
 --- Each effect will be applied in sequence, with effects of higher priority rendering later.
----@param fx  DrawFX The DrawFX instance to add to the object.
+---@generic T : DrawFX
+---@param fx T The DrawFX instance to add to the object.
 ---@param id? string An optional string ID that can be used to reference the DrawFX in other functions.
----@return DrawFX fx The DrawFX instance that was added to the object.
+---@return T fx The DrawFX instance that was added to the object.
 function Object:addFX(fx, id)
     table.insert(self.draw_fx, fx)
     fx.parent = self
@@ -1165,17 +1257,17 @@ function Object:addFX(fx, id)
 end
 
 --- Returns a DrawFX added to the object.
----@param id string|class|DrawFX A string referring to the ID of a DrawFX, the class type that a DrawFX includes, or a DrawFX instance.
+---@param id string|Class|DrawFX A string referring to the ID of a DrawFX, the class type that a DrawFX includes, or a DrawFX instance.
 ---@return DrawFX|nil fx A DrawFX instance if the object has one that matches the ID, or `nil` otherwise.
 function Object:getFX(id)
     if isClass(id) then
-        for _,fx in ipairs(self.draw_fx) do
+        for _, fx in ipairs(self.draw_fx) do
             if fx:includes(id) or fx == id then
                 return fx
             end
         end
     else
-        for _,fx in ipairs(self.draw_fx) do
+        for _, fx in ipairs(self.draw_fx) do
             if fx.id == id then
                 return fx
             end
@@ -1184,7 +1276,7 @@ function Object:getFX(id)
 end
 
 --- Removes the specified DrawFX from the object.
----@param id string|class|DrawFX A string referring to the ID of a DrawFX, the class type that a DrawFX includes, or a DrawFX instance.
+---@param id string|Class|DrawFX A string referring to the ID of a DrawFX, the class type that a DrawFX includes, or a DrawFX instance.
 ---@return DrawFX|nil fx The removed DrawFX instance if the object has one that matches the ID, or `nil` otherwise.
 function Object:removeFX(id)
     local fx = self:getFX(id)
@@ -1205,7 +1297,8 @@ function Object:applyTransformTo(transform, floor_x, floor_y)
         transform:translate(Utils.floor(self.x, floor_x), Utils.floor(self.y, floor_y))
     end
     if self.parent and self.parent.camera and (self.parallax_x or self.parallax_y or self.parallax_origin_x or self.parallax_origin_y) then
-        local px, py = self.parent.camera:getParallax(self.parallax_x or 1, self.parallax_y or 1, self.parallax_origin_x, self.parallax_origin_y)
+        local px, py = self.parent.camera:getParallax(self.parallax_x or 1, self.parallax_y or 1, self.parallax_origin_x,
+            self.parallax_origin_y)
         if not floor_x then
             transform:translate(px, py)
         else
@@ -1213,9 +1306,9 @@ function Object:applyTransformTo(transform, floor_x, floor_y)
         end
     end
     if self.flip_x or self.flip_y then
-        transform:translate(self.width/2, self.height/2)
+        transform:translate(self.width / 2, self.height / 2)
         transform:scale(self.flip_x and -1 or 1, self.flip_y and -1 or 1)
-        transform:translate(-self.width/2, -self.height/2)
+        transform:translate(-self.width / 2, -self.height / 2)
     end
     if floor_x then
         floor_x = floor_x / self.scale_x
@@ -1247,6 +1340,14 @@ function Object:applyTransformTo(transform, floor_x, floor_y)
     end
     if self.camera then
         self.camera:applyTo(transform, floor_x, floor_y)
+    end
+    if self.graphics and ((self.graphics.shake_x and self.graphics.shake_x ~= 0) or (self.graphics.shake_y and self.graphics.shake_y ~= 0)) then
+        local shake_x, shake_y = math.ceil(self.graphics.shake_x), math.ceil(self.graphics.shake_y)
+        if not floor_x then
+            transform:translate(shake_x, shake_y)
+        else
+            transform:translate(Utils.floor(shake_x, floor_x), Utils.floor(shake_y, floor_y))
+        end
     end
     Utils.popPerformance()
 end
@@ -1298,9 +1399,9 @@ end
 
 ---@return table hierarchy A table of all parents between this object and its stage (inclusive).
 function Object:getHierarchy()
-    local tbl = {self}
+    local tbl = { self }
     if self.parent then
-        for _,v in ipairs(self.parent:getHierarchy()) do
+        for _, v in ipairs(self.parent:getHierarchy()) do
             table.insert(tbl, v)
         end
     end
@@ -1320,6 +1421,40 @@ function Object:getFullScale()
     return sx, sy
 end
 
+--- Returns whether the object has been clicked this frame.
+---@param number? button The mouse button to check. If not provided, it will check all buttons available.
+---@return boolean success Whether the object was clicked.
+---@return number button The mouse button that clicked the object. Useful if the 'button' argument was not provided.
+function Object:clicked(button)
+    if not button then
+        local used_button = 0
+        for i=1, Input.mouse_button_max do
+            local success, success_button = self:clicked(i)
+            used_button = math.max(used_button, success_button)
+            if success then
+                return true, success_button
+            end
+        end
+        return false, used_button
+    end
+    local clicked, x, y, presses = Input.mousePressed(button)
+    if not clicked then
+        return false, 0
+    end
+    if self.collider then
+        local point = PointCollider(nil, x, y)
+        return self.collider:collidesWith(point), button
+    else
+        -- roughly same code as DebugSystem:detectObject(x, y)
+        local mx, my = self:getFullTransform():inverseTransformPoint(x, y)
+        local rect = self:getDebugRectangle() or { 0, 0, self.width, self.height }
+        if mx >= rect[1] and mx < rect[1] + rect[3] and my >= rect[2] and my < rect[2] + rect[4] then
+            return true, button
+        end
+    end
+    return false, button
+end
+
 --- Removes the object from its parent.
 function Object:remove()
     if self.parent then
@@ -1336,7 +1471,7 @@ end
 function Object:explode(x, y, dont_remove, options)
     if self.parent then
         options = options or {}
-        local rx, ry = self:getRelativePos(self.width/2 + (x or 0), self.height/2 + (y or 0))
+        local rx, ry = self:getRelativePos(self.width / 2 + (x or 0), self.height / 2 + (y or 0))
         local e = Explosion(rx, ry)
         e.layer = self.layer + 0.001
         e.play_sound = options["play_sound"] ~= false
@@ -1350,8 +1485,9 @@ end
 
 --- Adds the specified object as a child to this object, and adds it to a stage if it was not added to one previously. \
 --- Calls `child:onAdd(self)`.
----@param child Object The object to be added.
----@return Object child The object that was added.
+---@generic T : Object
+---@param child T The object to be added.
+---@return T child The object that was added.
 function Object:addChild(child)
     child.parent = self
     if self.stage and child.stage ~= self.stage then
@@ -1365,8 +1501,9 @@ end
 
 --- Removes the specified object from this object's children, and removes it from its stage. \
 --- Calls `child:onRemove(self)`.
----@param child Object The object to be removed.
----@return Object child The object that was removed.
+---@generic T : Object
+---@param child T The object to be removed.
+---@return T child The object that was removed.
 function Object:removeChild(child)
     if child.parent == self then
         child.parent = nil
@@ -1420,7 +1557,8 @@ function Object:isFullyVisible()
     return false
 end
 
---[[ Internal functions ]]--
+--[[ Internal functions ]]
+--
 
 function Object:sortChildren()
     table.stable_sort(self.children, Object.LAYER_SORT)
@@ -1429,8 +1567,8 @@ end
 function Object:updateChildList()
     local to_remove = Utils.copy(self.children_to_remove)
     self.children_to_remove = {}
-    for child,_ in pairs(to_remove) do
-        for i,v in ipairs(self.children) do
+    for child, _ in pairs(to_remove) do
+        for i, v in ipairs(self.children) do
             if v == child then
                 child:onRemove(self)
                 table.remove(self.children, i)
@@ -1446,10 +1584,10 @@ function Object:updateChildren()
         self:updateChildList()
         self.update_child_list = false
     end
-    for _,v in ipairs(self.draw_fx) do
+    for _, v in ipairs(self.draw_fx) do
         v:update()
     end
-    for _,v in ipairs(self.children) do
+    for _, v in ipairs(self.children) do
         if v.active and v.parent == self then
             v:fullUpdate()
         end
@@ -1481,7 +1619,7 @@ end
 function Object:preDraw(dont_transform)
     if not dont_transform then
         local transform = love.graphics.getTransformRef()
-        self:applyTransformTo(transform, 1/CURRENT_SCALE_X, 1/CURRENT_SCALE_Y)
+        self:applyTransformTo(transform, 1 / CURRENT_SCALE_X, 1 / CURRENT_SCALE_Y)
         love.graphics.replaceTransform(transform)
 
         self._last_draw_scale_x = CURRENT_SCALE_X
@@ -1495,7 +1633,7 @@ function Object:preDraw(dont_transform)
         end
     end
 
-    love.graphics.setColor(self:getDrawColor())
+    Draw.setColor(self:getDrawColor())
     Draw.pushScissor()
     self:applyScissor()
 end
@@ -1522,12 +1660,12 @@ function Object:drawChildren(min_layer, max_layer)
         max_layer = self.draw_children_above
     end
     local oldr, oldg, oldb, olda = love.graphics.getColor()
-    for _,v in ipairs(self.children) do
+    for _, v in ipairs(self.children) do
         if v.visible and (not min_layer or v.layer >= min_layer) and (not max_layer or v.layer < max_layer) then
             v:fullDraw()
         end
     end
-    love.graphics.setColor(oldr, oldg, oldb, olda)
+    Draw.setColor(oldr, oldg, oldb, olda)
 end
 
 function Object:drawSelf(no_children, dont_transform)
@@ -1562,11 +1700,12 @@ function Object:fullDraw(no_children, dont_transform)
         RUNTIME = RUNTIME + self._runtime_draw_offset
     end
     local processing_fx, fx_transform, fx_screen = self:shouldProcessDrawFX()
-    local fx_off_x, fx_off_y = math.floor(SCREEN_WIDTH/2 - self.width/2), math.floor(SCREEN_HEIGHT/2 - self.height/2)
+    local fx_off_x, fx_off_y = math.floor(SCREEN_WIDTH / 2 - self.width / 2), math.floor(SCREEN_HEIGHT / 2 -
+        self.height / 2)
     local canvas = nil
     if processing_fx then
         Draw.pushCanvasLocks()
-        canvas = Draw.pushCanvas(SCREEN_WIDTH, SCREEN_HEIGHT, {keep_transform = not fx_transform})
+        canvas = Draw.pushCanvas(SCREEN_WIDTH, SCREEN_HEIGHT, { keep_transform = not fx_transform })
         if fx_transform then
             love.graphics.translate(fx_off_x, fx_off_y)
         end
@@ -1584,15 +1723,15 @@ function Object:fullDraw(no_children, dont_transform)
                 love.graphics.replaceTransform(current_transform)
             end
             if fx_screen then
-                local screen_canvas = Draw.pushCanvas(SCREEN_WIDTH, SCREEN_HEIGHT, {keep_transform = true})
-                love.graphics.setColor(1, 1, 1)
-                love.graphics.draw(final_canvas, -fx_off_x, -fx_off_y)
+                local screen_canvas = Draw.pushCanvas(SCREEN_WIDTH, SCREEN_HEIGHT, { keep_transform = true })
+                Draw.setColor(1, 1, 1)
+                Draw.draw(final_canvas, -fx_off_x, -fx_off_y)
                 Draw.popCanvas(true)
                 Draw.unlockCanvas(final_canvas)
                 final_canvas = screen_canvas
             else
-                love.graphics.setColor(1, 1, 1)
-                love.graphics.draw(final_canvas, -fx_off_x, -fx_off_y)
+                Draw.setColor(1, 1, 1)
+                Draw.draw(final_canvas, -fx_off_x, -fx_off_y)
             end
             love.graphics.pop()
         end
@@ -1600,8 +1739,8 @@ function Object:fullDraw(no_children, dont_transform)
             final_canvas = self:processDrawFX(final_canvas, false)
             love.graphics.push()
             love.graphics.origin()
-            love.graphics.setColor(1, 1, 1)
-            love.graphics.draw(final_canvas)
+            Draw.setColor(1, 1, 1)
+            Draw.draw(final_canvas)
             love.graphics.pop()
         end
         Draw.popCanvasLocks()
@@ -1615,7 +1754,7 @@ end
 
 function Object:shouldProcessDrawFX()
     local any_active, any_transformed, any_screen = false, false, false
-    for _,fx in ipairs(self.draw_fx) do
+    for _, fx in ipairs(self.draw_fx) do
         if fx:isActive(self) then
             any_active = true
             any_transformed = any_transformed or fx.transformed
@@ -1628,10 +1767,10 @@ end
 function Object:processDrawFX(canvas, transformed)
     table.stable_sort(self.draw_fx, FXBase.SORTER)
 
-    for _,fx in ipairs(self.draw_fx) do
+    for _, fx in ipairs(self.draw_fx) do
         if fx:isActive(self) and (transformed == nil or fx.transformed == transformed) then
             local next_canvas = Draw.pushCanvas(SCREEN_WIDTH, SCREEN_HEIGHT)
-            love.graphics.setColor(1, 1, 1)
+            Draw.setColor(1, 1, 1)
             fx:draw(canvas, self)
             Draw.popCanvas(true)
             Draw.unlockCanvas(canvas)
@@ -1659,7 +1798,7 @@ function Object:updatePhysicsTransform()
             else
                 physics.direction = math.atan2(new_speed_y, new_speed_x)
             end
-            physics.speed = math.sqrt(new_speed_x*new_speed_x + new_speed_y*new_speed_y)
+            physics.speed = math.sqrt(new_speed_x * new_speed_x + new_speed_y * new_speed_y)
         else
             physics.speed_x = physics.speed_x or 0
             physics.speed_y = physics.speed_y or 0
@@ -1691,13 +1830,17 @@ function Object:updatePhysicsTransform()
         local next_x, next_y = self.x, self.y
         if physics.move_target.speed then
             local angle = Utils.angle(self.x, self.y, physics.move_target.x, physics.move_target.y)
-            next_x = Utils.approach(self.x, physics.move_target.x, physics.move_target.speed * math.abs(math.cos(angle)) * DTMULT)
-            next_y = Utils.approach(self.y, physics.move_target.y, physics.move_target.speed * math.abs(math.sin(angle)) * DTMULT)
+            next_x = Utils.approach(self.x, physics.move_target.x,
+                physics.move_target.speed * math.abs(math.cos(angle)) * DTMULT)
+            next_y = Utils.approach(self.y, physics.move_target.y,
+                physics.move_target.speed * math.abs(math.sin(angle)) * DTMULT)
         elseif physics.move_target.time then
             physics.move_target.timer = Utils.approach(physics.move_target.timer, physics.move_target.time, DT)
 
-            next_x = Utils.ease(physics.move_target.start_x, physics.move_target.x, (physics.move_target.timer / physics.move_target.time), physics.move_target.ease)
-            next_y = Utils.ease(physics.move_target.start_y, physics.move_target.y, (physics.move_target.timer / physics.move_target.time), physics.move_target.ease)
+            next_x = Utils.ease(physics.move_target.start_x, physics.move_target.x,
+                (physics.move_target.timer / physics.move_target.time), physics.move_target.ease)
+            next_y = Utils.ease(physics.move_target.start_y, physics.move_target.y,
+                (physics.move_target.timer / physics.move_target.time), physics.move_target.ease)
         end
         if physics.move_target.move_func then
             physics.move_target.move_func(self, next_x - self.x, next_y - self.y)
@@ -1721,7 +1864,9 @@ function Object:updatePhysicsTransform()
         else
             physics.move_path.progress = physics.move_path.progress % physics.move_path.length
         end
-        local eased_progress = Utils.ease(0, physics.move_path.length, (physics.move_path.progress / physics.move_path.length), physics.move_path.ease)
+        local eased_progress = Utils.ease(0, physics.move_path.length,
+            (physics.move_path.progress / physics.move_path.length), physics.move_path
+            .ease)
         local target_x, target_y = Utils.getPointOnPath(physics.move_path.path, eased_progress)
         if physics.move_path.move_func then
             physics.move_path.move_func(self, target_x - self.x, target_y - self.y)
@@ -1753,8 +1898,8 @@ function Object:updateGraphicsTransform()
     end
 
     if (graphics.grow and graphics.grow ~= 0)
-    or (graphics.grow_x and graphics.grow_x ~= 0)
-    or (graphics.grow_y and graphics.grow_y ~= 0) then
+        or (graphics.grow_x and graphics.grow_x ~= 0)
+        or (graphics.grow_y and graphics.grow_y ~= 0) then
         self.scale_x = self.scale_x + ((graphics.grow_x or 0) + (graphics.grow or 0)) * DTMULT
         self.scale_y = self.scale_y + ((graphics.grow_y or 0) + (graphics.grow or 0)) * DTMULT
     end
@@ -1766,6 +1911,19 @@ function Object:updateGraphicsTransform()
 
     if graphics.spin and graphics.spin ~= 0 then
         self.rotation = self.rotation + graphics.spin * DTMULT
+    end
+
+    if (graphics.shake_x and graphics.shake_x ~= 0) or (graphics.shake_y and graphics.shake_y ~= 0) then
+        graphics.shake_timer = (graphics.shake_timer or 0) + DT
+        while graphics.shake_timer >= (graphics.shake_delay or (2 / 30)) do
+            graphics.shake_x = (graphics.shake_x or 0) * -1
+            graphics.shake_y = (graphics.shake_y or 0) * -1
+            graphics.shake_timer = graphics.shake_timer - (graphics.shake_delay or (2 / 30))
+        end
+        if graphics.shake_friction and graphics.shake_friction ~= 0 then
+            graphics.shake_x = Utils.approach(graphics.shake_x or 0, 0, graphics.shake_friction * DTMULT)
+            graphics.shake_y = Utils.approach(graphics.shake_y or 0, 0, graphics.shake_friction * DTMULT)
+        end
     end
 end
 
@@ -1779,6 +1937,7 @@ end
 function Object:canDeepCopy()
     return true
 end
+
 function Object:canDeepCopyKey(key)
     return key ~= "parent"
 end

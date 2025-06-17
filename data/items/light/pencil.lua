@@ -1,7 +1,7 @@
 local item, super = Class(LightEquipItem, "light/pencil")
 
 function item:init()
-    super:init(self)
+    super.init(self)
 
     -- Display name
     self.name = "Pencil"
@@ -10,6 +10,9 @@ function item:init()
     self.type = "weapon"
     -- Whether this item is for the light world
     self.light = true
+
+    -- Item description text (unused by light items outside of debug menu)
+    self.description = "Mightier than a sword? Maybe equal at best."
 
     -- Light world check text
     self.check = "Weapon 1 AT\n* Mightier than a sword?\n* Maybe equal at best."

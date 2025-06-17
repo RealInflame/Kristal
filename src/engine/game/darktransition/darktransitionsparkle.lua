@@ -1,7 +1,9 @@
+---@class DarkTransitionSparkle : Sprite
+---@overload fun(...) : DarkTransitionSparkle
 local DarkTransitionSparkle, super = Class(Sprite)
 
 function DarkTransitionSparkle:init(texture, x, y)
-    super:init(self, texture, x, y)
+    super.init(self, texture, x, y)
 
     self.hspeed = (math.random() * 6) - 3
     self.friction = 0.05
@@ -18,7 +20,7 @@ function DarkTransitionSparkle:update()
         self:remove()
     end
 
-    super:update(self)
+    super.update(self)
 end
 
 return DarkTransitionSparkle

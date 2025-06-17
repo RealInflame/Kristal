@@ -1,7 +1,9 @@
+---@class ActionButton : Object
+---@overload fun(...) : ActionButton
 local ActionButton, super = Class(Object)
 
 function ActionButton:init(type, battler, x, y)
-    super:init(self, x, y)
+    super.init(self, x, y)
 
     self.type = type
     self.battler = battler
@@ -20,49 +22,61 @@ function ActionButton:init(type, battler, x, y)
 end
 
 function ActionButton:select()
+    if Game.battle.encounter:onActionSelect(self.battler, self) then return end
+    if Kristal.callEvent(KRISTAL_EVENT.onActionSelect, self.battler, self) then return end
     if self.type == "fight" then
         Game.battle:setState("ENEMYSELECT", "ATTACK")
     elseif self.type == "act" then
         Game.battle:setState("ENEMYSELECT", "ACT")
     elseif self.type == "magic" then
-        Game.battle.menu_items = {}
+        Game.battle:clearMenuItems()
 
         -- First, register X-Actions as menu items.
 
         if Game.battle.encounter.default_xactions and self.battler.chara:hasXAct() then
-            local item = {
+            local spell = {
+                ["name"] = Game.battle.enemies[1]:getXAction(self.battler),
+                ["target"] = "xact",
+                ["id"] = 0,
+                ["default"] = true,
+                ["party"] = {},
+                ["tp"] = 0
+            }
+
+            Game.battle:addMenuItem({
                 ["name"] = self.battler.chara:getXActName() or "X-Action",
                 ["tp"] = 0,
                 ["color"] = {self.battler.chara:getXActColor()},
-                ["data"] = {
-                    ["name"] = Game.battle.enemies[1]:getXAction(self.battler),
-                    ["target"] = "xact",
-                    ["id"] = 0,
-                    ["default"] = true,
-                    ["party"] = {},
-                    ["tp"] = 0
-                }
-            }
-            table.insert(Game.battle.menu_items, item)
+                ["data"] = spell,
+                ["callback"] = function(menu_item)
+                    Game.battle.selected_xaction = spell
+                    Game.battle:setState("XACTENEMYSELECT", "SPELL")
+                end
+            })
         end
 
         for id, action in ipairs(Game.battle.xactions) do
             if action.party == self.battler.chara.id then
-                local item = {
+                local spell = {
+                    ["name"] = action.name,
+                    ["target"] = "xact",
+                    ["id"] = id,
+                    ["default"] = false,
+                    ["party"] = {},
+                    ["tp"] = action.tp or 0
+                }
+
+                Game.battle:addMenuItem({
                     ["name"] = action.name,
                     ["tp"] = action.tp or 0,
                     ["description"] = action.description,
                     ["color"] = action.color or {1, 1, 1, 1},
-                    ["data"] = {
-                        ["name"] = action.name,
-                        ["target"] = "xact",
-                        ["id"] = id,
-                        ["default"] = false,
-                        ["party"] = {},
-                        ["tp"] = action.tp or 0
-                    }
-                }
-                table.insert(Game.battle.menu_items, item)
+                    ["data"] = spell,
+                    ["callback"] = function(menu_item)
+                        Game.battle.selected_xaction = spell
+                        Game.battle:setState("XACTENEMYSELECT", "SPELL")
+                    end
+                })
             end
         end
 
@@ -81,29 +95,57 @@ function ActionButton:select()
                     color = {0, 178/255, 1, 1}
                 end
             end
-            local item = {
+            Game.battle:addMenuItem({
                 ["name"] = spell:getName(),
                 ["tp"] = spell:getTPCost(self.battler.chara),
                 ["unusable"] = not spell:isUsable(self.battler.chara),
                 ["description"] = spell:getBattleDescription(),
                 ["party"] = spell.party,
                 ["color"] = color,
-                ["data"] = spell
-            }
-            table.insert(Game.battle.menu_items, item)
+                ["data"] = spell,
+                ["callback"] = function(menu_item)
+                    Game.battle.selected_spell = menu_item
+
+                    if not spell.target or spell.target == "none" then
+                        Game.battle:pushAction("SPELL", nil, menu_item)
+                    elseif spell.target == "ally" then
+                        Game.battle:setState("PARTYSELECT", "SPELL")
+                    elseif spell.target == "enemy" then
+                        Game.battle:setState("ENEMYSELECT", "SPELL")
+                    elseif spell.target == "party" then
+                        Game.battle:pushAction("SPELL", Game.battle.party, menu_item)
+                    elseif spell.target == "enemies" then
+                        Game.battle:pushAction("SPELL", Game.battle:getActiveEnemies(), menu_item)
+                    end
+                end
+            })
         end
 
         Game.battle:setState("MENUSELECT", "SPELL")
     elseif self.type == "item" then
-        Game.battle.menu_items = {}
+        Game.battle:clearMenuItems()
         for i,item in ipairs(Game.inventory:getStorage("items")) do
-            local menu_item = {
+            Game.battle:addMenuItem({
                 ["name"] = item:getName(),
                 ["unusable"] = item.usable_in ~= "all" and item.usable_in ~= "battle",
                 ["description"] = item:getBattleDescription(),
-                ["data"] = item
-            }
-            table.insert(Game.battle.menu_items, menu_item)
+                ["data"] = item,
+                ["callback"] = function(menu_item)
+                    Game.battle.selected_item = menu_item
+
+                    if not item.target or item.target == "none" then
+                        Game.battle:pushAction("ITEM", nil, menu_item)
+                    elseif item.target == "ally" then
+                        Game.battle:setState("PARTYSELECT", "ITEM")
+                    elseif item.target == "enemy" then
+                        Game.battle:setState("ENEMYSELECT", "ITEM")
+                    elseif item.target == "party" then
+                        Game.battle:pushAction("ITEM", Game.battle.party, menu_item)
+                    elseif item.target == "enemies" then
+                        Game.battle:pushAction("ITEM", Game.battle:getActiveEnemies(), menu_item)
+                    end
+                end
+            })
         end
         if #Game.battle.menu_items > 0 then
             Game.battle:setState("MENUSELECT", "ITEM")
@@ -133,8 +175,10 @@ function ActionButton:hasSpecial()
                 local has_pacify = false
                 for _,spell in ipairs(self.battler.chara:getSpells()) do
                     if spell and spell:hasTag("spare_tired") then
-                        has_pacify = true
-                        break
+                        if spell:isUsable(self.battler.chara) and spell:getTPCost(self.battler.chara) <= Game:getTension() then
+                            has_pacify = true
+                            break
+                        end
                     end
                 end
                 return has_pacify
@@ -152,17 +196,17 @@ end
 
 function ActionButton:draw()
     if self.selectable and self.hovered then
-        love.graphics.draw(self.hovered_texture or self.texture)
+        Draw.draw(self.hovered_texture or self.texture)
     else
-        love.graphics.draw(self.texture)
+        Draw.draw(self.texture)
         if self.selectable and self.special_texture and self:hasSpecial() then
             local r,g,b,a = self:getDrawColor()
-            love.graphics.setColor(r,g,b,a * (0.4 + math.sin((Kristal.getTime() * 30) / 6) * 0.4))
-            love.graphics.draw(self.special_texture)
+            Draw.setColor(r,g,b,a * (0.4 + math.sin((Kristal.getTime() * 30) / 6) * 0.4))
+            Draw.draw(self.special_texture)
         end
     end
 
-    super:draw(self)
+    super.draw(self)
 end
 
 return ActionButton

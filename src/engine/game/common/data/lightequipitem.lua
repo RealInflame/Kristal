@@ -1,3 +1,7 @@
+--- A class to extend from instead of [`Item`](lua://Item.init) when making equipment for the Light World. \
+--- Shares all the same variables and functions as `Item`
+---@class LightEquipItem : Item
+---@overload fun(...) : LightEquipItem
 local LightEquipItem, super = Class(Item)
 
 function LightEquipItem:showEquipText()
@@ -28,8 +32,10 @@ function LightEquipItem:onWorldUse(target)
 
     self:onEquip(chara, replacing)
 
+    chara:onUnequip(replacing, self)
+
     self:showEquipText()
-    return false
+    return replacing == nil
 end
 
 function LightEquipItem:setArmor(i, item)
@@ -63,7 +69,7 @@ function LightEquipItem:createArmorItems()
 
         return armor_items
     else
-        local armor_result = super:convertToDark(self)
+        local armor_result = super.convertToDark(self)
         if type(armor_result) == "string" then
             armor_result = Registry.createItem(armor_result)
         end
@@ -104,6 +110,7 @@ function LightEquipItem:convertToDarkEquip(chara)
 end
 
 function LightEquipItem:convertToDark(inventory)
+    if not self.dark_item then return false end
     if self.type == "armor" then
         local armors = self:createArmorItems()
         if armors[1] then
@@ -114,7 +121,7 @@ function LightEquipItem:convertToDark(inventory)
         end
         return true
     else
-        return super:convertToDark(self, inventory)
+        return super.convertToDark(self, inventory)
     end
 end
 

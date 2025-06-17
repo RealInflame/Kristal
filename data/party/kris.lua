@@ -1,7 +1,7 @@
 local character, super = Class(PartyMember, "kris")
 
 function character:init()
-    super:init(self)
+    super.init(self)
 
     -- Display name
     self.name = "Clover"
@@ -9,14 +9,19 @@ function character:init()
     -- Actor (handles overworld/battle sprites)
     self:setActor("kris")
     self:setLightActor("kris_lw")
+    self:setDarkTransitionActor("kris_dark_transition")
 
     -- Display level (saved to the save file)
     self.level = Game.chapter
     -- Default title / class (saved to the save file)
     if Game.chapter == 1 then
         self.title = "Leader\nCommands the party\nwith various ACTs."
-    else
+    elseif Game.chapter == 2 then
         self.title = "Tactician\nCommands the party\nby ACTs. Sometimes."
+    elseif Game.chapter == 3 then
+        self.title = "Tactician\nCommands the party\nby ACTs."
+    else
+        self.title = "Dark Hero\nCarries out fate\nwith the blade."
     end
 
     -- Determines which character the soul comes from (higher number = higher priority)
@@ -41,8 +46,12 @@ function character:init()
     -- Current health (saved to the save file)
     if Game.chapter == 1 then
         self.health = 90
+    elseif Game.chapter == 2 then
+        self.health = 120
+    elseif Game.chapter == 3 then
+        self.health = 160
     else
-        self.health = 12
+        self.health = 200
     end
 
     -- Base stats (saved to the save file)
@@ -53,24 +62,50 @@ function character:init()
             defense = 2,
             magic = 0
         }
-    else
+    elseif Game.chapter == 2 then
         self.stats = {
             health = 12,
             attack = 12,
             defense = 2,
             magic = 0
         }
+    elseif Game.chapter == 3 then
+        self.stats = {
+            health = 160,
+            attack = 14,
+            defense = 2,
+            magic = 0
+        }
+    else
+        self.stats = {
+            health = 200,
+            attack = 17,
+            defense = 2,
+            magic = 0
+        }
+
     end
     -- Max stats from level-ups
     if Game.chapter == 1 then
         self.max_stats = {
             health = 12
         }
-    else
+    elseif Game.chapter == 2 then
         self.max_stats = {
             health = 160
         }
+    elseif Game.chapter == 3 then
+        self.max_stats = {
+            health = 200
+        }
+    else
+        self.max_stats = {
+            health = 240
+        }
     end
+    
+    -- Party members which will also get stronger when this character gets stronger, even if they're not in the party
+    self.stronger_absent = {"kris","susie","ralsei"}
 
     -- Weapon icon in equip menu
     self.weapon_icon = "ui/menu/equip/sword"
@@ -142,16 +177,19 @@ function character:drawPowerStat(index, x, y, menu)
         local frames = Assets.getFrames("misc/dog_sleep")
         local frame = math.floor(Kristal.getTime()) % #frames + 1
         love.graphics.print("Dog:", x, y)
-        love.graphics.draw(frames[frame], x+120, y+5, 0, 2, 2)
+        Draw.draw(frames[frame], x+120, y+5, 0, 2, 2)
         return true
     elseif index == 3 then
         local icon = Assets.getTexture("ui/menu/icon/fire")
-        love.graphics.draw(icon, x-26, y+6, 0, 2, 2)
+        Draw.draw(icon, x-26, y+6, 0, 2, 2)
         love.graphics.print("Guts:", x, y)
 
-        love.graphics.draw(icon, x+90, y+6, 0, 2, 2)
+        Draw.draw(icon, x+90, y+6, 0, 2, 2)
         if Game.chapter >= 2 then
-            love.graphics.draw(icon, x+110, y+6, 0, 2, 2)
+            Draw.draw(icon, x+110, y+6, 0, 2, 2)
+        end
+        if Game.chapter >= 4 then
+            Draw.draw(icon, x+130, y+6, 0, 2, 2)
         end
         return true
     end

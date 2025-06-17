@@ -1,3 +1,5 @@
+---@class GonerKeyboard : Object
+---@overload fun(...) : GonerKeyboard
 local GonerKeyboard, super = Class(Object)
 
 -- For japanese support in the future maybe
@@ -13,11 +15,26 @@ GonerKeyboard.MODES = {
             {"K", "L", "M", "N", "O", "P", "Q", "R", "S", "T"},
             {"U", "V", "W", "X", "Y", "Z", "BACK", "<<", "END", "<<"}
         }
+    },
+    ["lowercase"] = {
+        x      = 136,
+        y      = 140,
+        step_x = 40,
+        step_y = 40,
+        name_y = 80,
+        keyboard = {
+            {"A", "B", "C", "D", "E", "F", "G", "H", "I", "J"},
+            {"K", "L", "M", "N", "O", "P", "Q", "R", "S", "T"},
+            {"U", "V", "W", "X", "Y", "Z", "<<", "<<", "<<", "<<"},
+            {"a", "b", "c", "d", "e", "f", "g", "h", "i", "j"},
+            {"k", "l", "m", "n", "o", "p", "q", "r", "s", "t"},
+            {"u", "v", "w", "x", "y", "z", "BACK", "<<", "END", "<<"}
+        }
     }
 }
 
 function GonerKeyboard:init(limit, mode, callback, key_callback)
-    super:init(self, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT)
+    super.init(self, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT)
 
     self.limit = limit or -1
     self.mode = nil
@@ -85,7 +102,7 @@ function GonerKeyboard:createKeyboardChoices(mode)
 end
 
 function GonerKeyboard:update()
-    super:update(self)
+    super.update(self)
 
     self.alpha = self.choicer.alpha
 end
@@ -104,7 +121,7 @@ function GonerKeyboard:onSelect(key, x, y)
     elseif key == "END" then
         self:finish()
     elseif #key > 1 then
-        print("Unknown command: " .. key)
+        Kristal.Console:warn("Unknown command: " .. key)
     else
         self:addCharacter(key)
     end
@@ -140,14 +157,14 @@ function GonerKeyboard:finish()
 end
 
 function GonerKeyboard:draw()
-    super:draw(self)
+    super.draw(self)
 
     love.graphics.setFont(self.font)
 
     if self.limit >= 0 and #self.text >= self.limit then
-        love.graphics.setColor(1, 1, 0, self.alpha)
+        Draw.setColor(1, 1, 0, self.alpha)
     else
-        love.graphics.setColor(1, 1, 1, self.alpha)
+        Draw.setColor(1, 1, 1, self.alpha)
     end
 
     local w = self.font:getWidth(self.text)

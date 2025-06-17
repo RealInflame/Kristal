@@ -1,7 +1,9 @@
+---@class DebugWindow : Object
+---@overload fun(name: string, text: string, type: string, callback: fun(text: string)) : DebugWindow
 local DebugWindow, super = Class(Object)
 
 function DebugWindow:init(name, text, type, callback)
-    super:init(self, 0, 0)
+    super.init(self, 0, 0)
     self.layer = 10000000 + 1
 
     -- VERY hardcoded object to handle message boxes used for debug purposes.
@@ -25,10 +27,10 @@ function DebugWindow:init(name, text, type, callback)
 
     self.buttons = {}
 
-    self.input_lines = {""}
+    self.input_lines = { "" }
 
     if self.type == "input" then
-        self.buttons = {"Cancel", "OK"}
+        self.buttons = { "Cancel", "OK" }
     end
 
     OVERLAY_OPEN = true
@@ -40,9 +42,6 @@ function DebugWindow:init(name, text, type, callback)
 
     self.anim_timer = 0
 
-    self.canvas = love.graphics.newCanvas(SCREEN_WIDTH, SCREEN_HEIGHT)
-    self.canvas:setFilter("nearest", "nearest")
-
     self.closing = false
 
 
@@ -51,11 +50,12 @@ function DebugWindow:init(name, text, type, callback)
             multiline = false,
             enter_submits = true,
         })
-        TextInput.submit_callback = function(...) self:onSubmit(...) end
+        TextInput.submit_callback = function (...) self:onSubmit() end
     end
 end
 
 function DebugWindow:close()
+    TextInput.endInput()
     if Kristal.DebugSystem.window == self then
         Kristal.DebugSystem.window = nil
     end
@@ -96,7 +96,7 @@ function DebugWindow:onMouseReleased(x, y, button, istouch, presses)
     end
 
     if #self.buttons > 0 then
-        button_off = 0
+        local button_off = 0
         for i = #self.buttons, 1, -1 do
             local button = self.buttons[i]
             local width = self.font:getWidth(button) + 20
@@ -111,8 +111,6 @@ function DebugWindow:onMouseReleased(x, y, button, istouch, presses)
             end
         end
     end
-
-    return
 end
 
 function DebugWindow:getScreenBounds()
@@ -168,7 +166,7 @@ function DebugWindow:update()
     self:calculateSize()
     self:keepInBounds()
 
-    super:update(self)
+    super.update(self)
 end
 
 function DebugWindow:getLocalMousePosition()
@@ -189,7 +187,6 @@ function DebugWindow:getVerticalPadding()
 end
 
 function DebugWindow:onSubmit()
-    TextInput.endInput()
     if self.callback then
         self.callback(self.input_lines[1])
     end
@@ -197,30 +194,30 @@ function DebugWindow:onSubmit()
 end
 
 function DebugWindow:draw()
-    local bg_color = {0.156863, 0.172549, 0.211765, 0.8}
-    local highlighted_color = {1, 0.070588, 0.466667, 0.8}
+    local bg_color = { 0.156863, 0.172549, 0.211765, 0.8 }
+    local highlighted_color = { 1, 0.070588, 0.466667, 0.8 }
 
     self:keepInBounds()
 
     local padding_x = self:getHorizontalPadding()
     local padding_y = self:getVerticalPadding()
 
-    Draw.pushCanvas(self.canvas)
+    local canvas = Draw.pushCanvas(SCREEN_WIDTH, SCREEN_HEIGHT)
     love.graphics.clear()
 
     love.graphics.setFont(self.font)
-    love.graphics.setColor(1, 1, 1, 1)
+    Draw.setColor(1, 1, 1, 1)
     local offset = self:getVerticalPadding()
     local tooltip_to_draw = nil
 
     offset = offset + self.font:getHeight() + 4 -- name has 4 extra pixels
-    love.graphics.setColor(bg_color)
+    Draw.setColor(bg_color)
     love.graphics.rectangle("fill", 0, 0, self.width, self.height)
-    
+
     -- Draw the window name
-    love.graphics.setColor(1, 1, 1, 1)
+    Draw.setColor(1, 1, 1, 1)
     love.graphics.print(self.name, padding_x, padding_y)
-    
+
     -- Draw the window name line
     love.graphics.setLineWidth(2)
     love.graphics.line(0, offset, self.width, offset)
@@ -233,7 +230,7 @@ function DebugWindow:draw()
 
     love.graphics.setLineWidth(1)
     if self.type == "input" then
-        love.graphics.setColor(bg_color)
+        Draw.setColor(bg_color)
         love.graphics.rectangle("fill", padding_x, offset, self.width - (padding_x * 2), 20)
 
         TextInput.draw({
@@ -244,13 +241,13 @@ function DebugWindow:draw()
 
         offset = offset + 20 + 8
 
-        love.graphics.setColor(1, 1, 1, 1)
-        love.graphics.line(padding_x, offset-8, self.width - padding_x, offset-8)
+        Draw.setColor(1, 1, 1, 1)
+        love.graphics.line(padding_x, offset - 8, self.width - padding_x, offset - 8)
     end
 
     if #self.buttons > 0 then
         -- loop through buttons in reverse
-        button_off = 0
+        local button_off = 0
         for i = #self.buttons, 1, -1 do
             local button = self.buttons[i]
 
@@ -261,29 +258,28 @@ function DebugWindow:draw()
             button_off = button_off + width + 20
 
             if self:isMouseOver(x, offset, x + width, offset + 20) then
-                love.graphics.setColor(highlighted_color)
+                Draw.setColor(highlighted_color)
             else
-                love.graphics.setColor(bg_color)
+                Draw.setColor(bg_color)
             end
 
             love.graphics.rectangle("fill", x, offset, width, 20, 5, 5)
-            love.graphics.setColor(1, 1, 1, 1)
+            Draw.setColor(1, 1, 1, 1)
             love.graphics.rectangle("line", x, offset, width, 20, 5, 5)
 
             love.graphics.print(button, x + 10, offset + 1)
         end
     end
 
-    love.graphics.setColor(1, 1, 1, 1)
+    Draw.setColor(1, 1, 1, 1)
 
-    -- Reset canvas to draw to
     Draw.popCanvas()
 
-    local anim = Utils.ease(0, 1, self.anim_timer/0.2, "outQuad")
-    love.graphics.setColor(1, 1, 1, anim)
-    love.graphics.draw(self.canvas, 0, 12 - (anim * 12))
+    local anim = Utils.ease(0, 1, self.anim_timer / 0.2, "outQuad")
+    Draw.setColor(1, 1, 1, anim)
+    Draw.draw(canvas, 0, 12 - (anim * 12))
 
-    super:draw(self)
+    super.draw(self)
 end
 
 return DebugWindow

@@ -1,7 +1,9 @@
+---@class CircleCollider : Collider
+---@overload fun(...) : CircleCollider
 local CircleCollider, super = Class(Collider)
 
 function CircleCollider:init(parent, x, y, radius, mode)
-    super:init(self, parent, x, y, mode)
+    super.init(self, parent, x, y, mode)
 
     self.radius = radius
 end
@@ -43,7 +45,7 @@ function CircleCollider:collidesWith(other)
         end
     end
 
-    return super:collidesWith(self, other)
+    return super.collidesWith(self, other)
 end
 
 function CircleCollider:getShapeFor(other)
@@ -52,15 +54,15 @@ function CircleCollider:getShapeFor(other)
 end
 
 function CircleCollider:draw(r,g,b,a)
-    love.graphics.setColor(r,g,b,a)
+    Draw.setColor(r,g,b,a)
     love.graphics.setLineWidth(1)
     love.graphics.circle("line", self.x, self.y, self.radius)
-    love.graphics.setColor(1, 1, 1, 1)
+    Draw.setColor(1, 1, 1, 1)
 end
 function CircleCollider:drawFill(r,g,b,a)
-    love.graphics.setColor(r,g,b,a)
+    Draw.setColor(r,g,b,a)
     love.graphics.circle("fill", self.x, self.y, self.radius)
-    love.graphics.setColor(1, 1, 1, 1)
+    Draw.setColor(1, 1, 1, 1)
 end
 
 return CircleCollider

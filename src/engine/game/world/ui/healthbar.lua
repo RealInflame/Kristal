@@ -1,7 +1,9 @@
+---@class HealthBar : Object
+---@overload fun(...) : HealthBar
 local HealthBar, super = Class(Object)
 
 function HealthBar:init()
-    super:init(self, 0, -80)
+    super.init(self, 0, -80)
 
     self.layer = 1 -- TODO
 
@@ -11,6 +13,7 @@ function HealthBar:init()
     self.animation_done = false
     self.animation_timer = 0
     self.animate_out = false
+    self.animation_y = -63
 
     self.action_boxes = {}
 
@@ -18,10 +21,18 @@ function HealthBar:init()
         local x_pos = (index - 1) * 213
 
         if #Game.party == 2 then
-            if index == 1 then
-                x_pos = 108
+            if Game:getConfig("oldUIPositions") then
+                if index == 1 then
+                    x_pos = 105
+                else
+                    x_pos = 325
+                end
             else
-                x_pos = 322
+                if index == 1 then
+                    x_pos = 108
+                else
+                    x_pos = 322
+                end
             end
         elseif #Game.party == 1 then
             x_pos = 213
@@ -77,20 +88,45 @@ function HealthBar:update()
     end
 
     if not self.animate_out then
-        self.y = Ease.outCubic(math.min(max_time, self.animation_timer), 417 + 63, -63, max_time)
+        if self.animation_y < 0 then
+            if self.animation_y > -40 then
+                self.animation_y = self.animation_y + math.ceil(-self.animation_y / 2.5) * DTMULT
+            else
+                self.animation_y = self.animation_y + 30 * DTMULT
+            end
+        else
+            self.animation_y = 0
+        end
     else
-        self.y = Ease.outCubic(math.min(max_time, self.animation_timer), 417, 63, max_time)
+        if self.animation_y > -63 then
+            if self.animation_y > 0 then
+                self.animation_y = self.animation_y - math.floor(self.animation_y / 2.5) * DTMULT
+            else
+                self.animation_y = self.animation_y - 30 * DTMULT
+            end
+        else
+            self.animation_y = -63
+        end
     end
 
-    super:update(self)
+    self.y = 480 - (self.animation_y + 63)
+
+    super.update(self)
 end
 
 function HealthBar:draw()
     -- Draw the black background
-    love.graphics.setColor(PALETTE["world_fill"])
-    love.graphics.rectangle("fill", 0, 2, 640, 61)
+    Draw.setColor(PALETTE["world_fill"])
+    love.graphics.rectangle("fill", 0, 2, 640, 62)
 
-    super:draw(self)
+    super.draw(self)
+end
+
+function HealthBar:react(chara, reaction)
+    local index = Game:getPartyIndex(chara)
+    if index and self.action_boxes[index] then
+        self.action_boxes[index]:react(reaction)
+    end
 end
 
 return HealthBar

@@ -1,7 +1,9 @@
+---@class LightMenu : Object
+---@overload fun(...) : LightMenu
 local LightMenu, super = Class(Object)
 
 function LightMenu:init()
-    super:init(self, 0, 0)
+    super.init(self, 0, 0)
 
     self.layer = 1 -- TODO
 
@@ -15,6 +17,9 @@ function LightMenu:init()
     self.selected_submenu = 1
 
     self.current_selecting = Game.world.current_selecting or 1
+
+    -- Make sure that we're not selecting a menu that doesn't exist...
+    self.current_selecting = Utils.clamp(self.current_selecting, 1, self:getMaxSelecting())
 
     self.item_selected = 1
 
@@ -43,6 +48,10 @@ function LightMenu:init()
     self:addChild(self.choice_box)
 
     self.storage = "items"
+end
+
+function LightMenu:getMaxSelecting()
+    return Game:getFlag("has_cell_phone", false) and 3 or 2
 end
 
 function LightMenu:onAddToStage(stage)
@@ -74,8 +83,7 @@ function LightMenu:onKeyPressed(key)
         local old_selected = self.current_selecting
         if Input.is("up", key)    then self.current_selecting = self.current_selecting - 1 end
         if Input.is("down", key) then self.current_selecting = self.current_selecting + 1 end
-        local max_selecting = Game:getFlag("has_cell_phone", false) and 3 or 2
-        self.current_selecting = Utils.clamp(self.current_selecting, 1, max_selecting)
+        self.current_selecting = Utils.clamp(self.current_selecting, 1, self:getMaxSelecting())
         if old_selected ~= self.current_selecting then
             self.ui_move:stop()
             self.ui_move:play()
@@ -122,7 +130,7 @@ function LightMenu:onButtonSelect(button)
 end
 
 function LightMenu:update()
-    super:update(self)
+    super.update(self)
     self:realign()
 end
 
@@ -138,7 +146,7 @@ function LightMenu:realign()
 end
 
 function LightMenu:draw()
-    super:draw(self)
+    super.draw(self)
 
     local offset = 0
     if self.top then
@@ -148,7 +156,7 @@ function LightMenu:draw()
     local chara = Game.party[1]
 
     love.graphics.setFont(self.font)
-    love.graphics.setColor(PALETTE["world_text"])
+    Draw.setColor(PALETTE["world_text"])
     love.graphics.print(chara:getName(), 46, 60 + offset)
 
     love.graphics.setFont(self.font_small)
@@ -158,25 +166,25 @@ function LightMenu:draw()
 
     love.graphics.setFont(self.font)
     if Game.inventory:getItemCount(self.storage, false) <= 0 then
-        love.graphics.setColor(PALETTE["world_gray"])
+        Draw.setColor(PALETTE["world_gray"])
     else
-        love.graphics.setColor(PALETTE["world_text"])
+        Draw.setColor(PALETTE["world_text"])
     end
     love.graphics.print("ITEM", 84, 188 + (36 * 0))
-    love.graphics.setColor(PALETTE["world_text"])
+    Draw.setColor(PALETTE["world_text"])
     love.graphics.print("STAT", 84, 188 + (36 * 1))
     if Game:getFlag("has_cell_phone", false) then
         if #Game.world.calls > 0 then
-            love.graphics.setColor(PALETTE["world_text"])
+            Draw.setColor(PALETTE["world_text"])
         else
-            love.graphics.setColor(PALETTE["world_gray"])
+            Draw.setColor(PALETTE["world_gray"])
         end
         love.graphics.print("CELL", 84, 188 + (36 * 2))
     end
 
     if self.state == "MAIN" then
-        love.graphics.setColor(Game:getSoulColor())
-        love.graphics.draw(self.heart_sprite, 56, 160 + (36 * self.current_selecting), 0, 2, 2)
+        Draw.setColor(Game:getSoulColor())
+        Draw.draw(self.heart_sprite, 56, 160 + (36 * self.current_selecting), 0, 2, 2)
     end
 end
 

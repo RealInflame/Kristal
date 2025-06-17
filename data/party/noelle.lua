@@ -1,7 +1,7 @@
 local character, super = Class(PartyMember, "noelle")
 
 function character:init()
-    super:init(self)
+    super.init(self)
 
     -- Display name
     self.name = "Noelle"
@@ -49,6 +49,9 @@ function character:init()
     self.max_stats = {
         health = 999
     }
+    
+    -- Party members which will also get stronger when this character gets stronger, even if they're not in the party
+    self.stronger_absent = {}
 
     -- Weapon icon in equip menu
     self.weapon_icon = "ui/menu/equip/ring"
@@ -102,19 +105,27 @@ function character:init()
     -- Character flags (saved to the save file)
     self.flags = {
         ["iceshocks_used"] = 0,
-        ["boldness"] = -12
+        ["boldness"] = -12,
+        ["weird"] = false
     }
 end
 
 function character:getTitle()
-    if self:checkWeapon("torturering") then
-        return "LV"..self.level.." Blizzard Bringer\nRecieves torture to\nbecome stronger."
-    elseif self:checkWeapon("thornring") then
-        return "LV"..self.level.." Ice Trancer\nReceives pain to\nbecome stronger."
+    local prefix = "LV"..self:getLevel().." "
+    if self:checkWeapon("thornring") then
+        return prefix.."Ice Trancer\nReceives pain to\nbecome stronger."
     elseif self:getFlag("iceshocks_used", 0) > 0 then
-        return "LV"..self.level.." Frostmancer\nFreezes the enemy."
+        return prefix.."Frostmancer\nFreezes the enemy."
     else
-        return "LV1 "..self.title
+        return super.getTitle(self)
+    end
+end
+
+function character:getLevel()
+    if self:checkWeapon("thornring") or self:getFlag("iceshocks_used", 0) > 0 then
+        return super.getLevel(self)
+    else
+        return 1
     end
 end
 
@@ -129,20 +140,20 @@ end
 function character:drawPowerStat(index, x, y, menu)
     if index == 1 then
         local icon = Assets.getTexture("ui/menu/icon/snow")
-        love.graphics.draw(icon, x-26, y+6, 0, 2, 2)
+        Draw.draw(icon, x-26, y+6, 0, 2, 2)
         love.graphics.print("Coldness", x, y)
         local coldness = Utils.clamp(47 + (self:getFlag("iceshocks_used", 0) * 7), 47, 100)
         love.graphics.print(coldness, x+130, y)
         return true
     elseif index == 2 then
         local icon = Assets.getTexture("ui/menu/icon/exclamation")
-        love.graphics.draw(icon, x-26, y+6, 0, 2, 2)
+        Draw.draw(icon, x-26, y+6, 0, 2, 2)
         love.graphics.print("Boldness", x, y, 0, 0.8, 1)
         love.graphics.print(self:getFlag("boldness", -12), x+130, y)
         return true
     elseif index == 3 then
         local icon = Assets.getTexture("ui/menu/icon/fire")
-        love.graphics.draw(icon, x-26, y+6, 0, 2, 2)
+        Draw.draw(icon, x-26, y+6, 0, 2, 2)
         love.graphics.print("Guts:", x, y)
         return true
     end

@@ -1,3 +1,52 @@
+---@class Input
+---
+---@field active_gamepad love.Joystick
+---@field connected_gamepad love.Joystick
+---
+---@field gamepad_left_x number
+---@field gamepad_left_y number
+---@field gamepad_right_x number
+---@field gamepad_right_y number
+---@field gamepad_left_trigger number
+---@field gamepad_right_trigger number
+---
+---@field key_down table<string, boolean>
+---@field key_pressed table<string, boolean>
+---@field key_repeated table<string, boolean>
+---@field key_released table<string, boolean>
+---
+---@field key_down_timer table<string, number>
+---
+---@field key_bindings table<string, (string|string[])[]>
+---@field gamepad_bindings table<string, (string|string[])[]>
+---
+---@field stray_key_bindings table<string, (string|string[])[]>
+---@field stray_gamepad_bindings table<string, (string|string[])[]>
+---
+---@field mod_keybinds table<string, string[]>
+---
+---@field gamepad_locked boolean
+---
+---@field gamepad_cursor_size number
+---@field gamepad_cursor_x number
+---@field gamepad_cursor_y number
+---
+---@field mouse_button_max number
+---@field mouse_down table<number, number[]>
+---@field mouse_pressed table<number, number[]>
+---@field mouse_released table<number, number[]>
+---
+---@field order string[]
+---
+---@field required_binds table<string, boolean>
+---
+---@field key_groups table<string, string[]>
+---@field group_for_key table<string, string>
+---
+---@field component_stack Component[]
+---
+---@field button_sprites table<string, string|{switch:string|nil, ps4:string|nil, xbox:string|nil}>
+---
 local Input = {}
 local self = Input
 
@@ -21,14 +70,24 @@ Input.key_down_timer = {}
 Input.key_bindings = {}
 Input.gamepad_bindings = {}
 
+Input.stray_key_bindings = {}
+Input.stray_gamepad_bindings = {}
+
+Input.mod_keybinds = {}
+
 Input.gamepad_locked = false
 
 Input.gamepad_cursor_size = 10
 Input.gamepad_cursor_x = (love.graphics.getWidth()  / 2) - (Input.gamepad_cursor_size / 2)
 Input.gamepad_cursor_y = (love.graphics.getHeight() / 2) - (Input.gamepad_cursor_size / 2)
 
+Input.mouse_button_max = 3
+Input.mouse_down = {}
+Input.mouse_pressed = {}
+Input.mouse_released = {}
+
 Input.order = {
-    "down", "right", "up", "left", "confirm", "cancel", "menu", "console", "debug_menu", "object_selector", "fast_forward"
+    "down", "right", "up", "left", "confirm", "cancel", "menu", "console", "debug_menu", "object_selector", "fast_forward", "mod_rebind"
 }
 
 Input.required_binds = {
@@ -59,6 +118,11 @@ Input.group_for_key = {
     ["rgui"]   = "cmd"
 }
 
+Input.component_stack = {}
+
+---@param stick "left"|"right"
+---@param raw? boolean
+---@return number x, number y
 function Input.getThumbstick(stick, raw)
     local x, y, deadzone
     if stick == "left" then
@@ -85,22 +149,29 @@ function Input.getThumbstick(stick, raw)
     return x, y
 end
 
+---@return number x, number y
 function Input.getLeftThumbstick()
     return Input.getThumbstick("left")
 end
 
+---@return number x, number y
 function Input.getRightThumbstick()
     return Input.getThumbstick("right")
 end
 
+---@return number
 function Input.getLeftTrigger()
     return self.gamepad_left_trigger
 end
 
+---@return number
 function Input.getRightTrigger()
     return self.gamepad_right_trigger
 end
 
+---@param key string
+---@param gamepad? boolean
+---@return (string|string[])[]|nil
 function Input.getBoundKeys(key, gamepad)
     if gamepad == nil then
         local key_bindings = Input.key_bindings[key]
@@ -125,8 +196,76 @@ function Input.getBoundKeys(key, gamepad)
     end
 end
 
-function Input.resetBinds(gamepad)
+---@param gamepad? boolean
+---@param mod_id? string
+function Input.resetBinds(gamepad, mod_id)
+    -- Special id to reset only default Kristal keybinds
+    if mod_id == "KRISTAL" then
+        local key_bindings = {
+            ["up"] = {"up"},
+            ["down"] = {"down"},
+            ["left"] = {"left"},
+            ["right"] = {"right"},
+            ["confirm"] = {"z", "return"},
+            ["cancel"] = {"x", "shift"},
+            ["menu"] = {"c", "ctrl"},
+            ["console"] = {"`"},
+            ["debug_menu"] = {{"shift", "`"}},
+            ["object_selector"] = {{"ctrl", "o"}},
+            ["fast_forward"] = {{"ctrl", "g"}},
+            ["mod_rebind"] = {"/"},
+        }
+        local gamepad_bindings = {
+            ["up"] = {"gamepad:dpup", "gamepad:lsup"},
+            ["down"] = {"gamepad:dpdown", "gamepad:lsdown"},
+            ["left"] = {"gamepad:dpleft", "gamepad:lsleft"},
+            ["right"] = {"gamepad:dpright", "gamepad:lsright"},
+            ["confirm"] = {"gamepad:a"},
+            ["cancel"] = {"gamepad:b"},
+            ["menu"] = {"gamepad:y"},
+            ["console"] = {},
+            ["debug_menu"] = {},
+            ["object_selector"] = {},
+            ["fast_forward"] = {},
+            ["mod_rebind"] = {"gamepad:x"},
+        }
+        if gamepad ~= true then Utils.merge(Input.key_bindings, key_bindings) end
+        if gamepad ~= false then Utils.merge(Input.gamepad_bindings, gamepad_bindings) end
+        return
+    -- If we receive a mod id, we are only resetting binds specific to that mod
+    elseif mod_id then
+        local mod = Kristal.Mods.getMod(mod_id)
+        if not mod then return end
+        local keys = mod.keybinds or {}
+        local libs = mod.libs or {}
+        for _, lib in pairs(libs) do
+            if lib.keybinds then Utils.merge(keys, lib.keybinds) end
+        end
+        if keys == {} then return end
+        if gamepad ~= true then
+            for _, v in pairs(keys) do
+                if v.keys then
+                    Input.key_bindings[v.id] = Utils.copy(v.keys)
+                else
+                    Input.key_bindings[v.id] = {}
+                end
+            end
+        end
+        if gamepad ~= false then
+            for _, v in pairs(keys) do
+                if v.gamepad then
+                    Input.gamepad_bindings[v.id] = Utils.copy(v.gamepad)
+                else
+                    Input.gamepad_bindings[v.id] = {}
+                end
+            end
+        end
+        return
+    end
+
     if gamepad ~= true then
+        Input.mod_keybinds = {}
+        Input.stray_key_bindings = {}
         Input.key_bindings = {
             ["up"] = {"up"},
             ["down"] = {"down"},
@@ -138,11 +277,41 @@ function Input.resetBinds(gamepad)
             ["console"] = {"`"},
             ["debug_menu"] = {{"shift", "`"}},
             ["object_selector"] = {{"ctrl", "o"}},
-            ["fast_forward"] = {{"ctrl", "g"}}
+            ["fast_forward"] = {{"ctrl", "g"}},
+            ["mod_rebind"] = {"/"},
         }
+        for _,mod in ipairs(Kristal.Mods.getMods()) do
+            if mod.keybinds then
+                Input.mod_keybinds[mod.id] = {}
+                for _,v in pairs(mod.keybinds) do
+                    if v.keys then
+                        Input.key_bindings[v.id] = Utils.copy(v.keys)
+                        table.insert(Input.mod_keybinds[mod.id], v.id)
+                    else
+                        Input.key_bindings[v.id] = {}
+                    end
+                end
+            end
+            if mod.libs then
+                for _,lib in pairs(mod.libs) do
+                    if lib.keybinds then
+                        Input.mod_keybinds[mod.id] = Input.mod_keybinds[mod.id] or {}
+                        for _,v in pairs(lib.keybinds) do
+                            if v.keys then
+                                Input.key_bindings[v.id] = Utils.copy(v.keys)
+                                table.insert(Input.mod_keybinds[mod.id], v.id)
+                            else
+                                Input.key_bindings[v.id] = {}
+                            end
+                        end
+                    end
+                end
+            end
+        end
     end
 
     if gamepad ~= false then
+        Input.stray_gamepad_bindings = {}
         Input.gamepad_bindings = {
             ["up"] = {"gamepad:dpup", "gamepad:lsup"},
             ["down"] = {"gamepad:dpdown", "gamepad:lsdown"},
@@ -154,8 +323,33 @@ function Input.resetBinds(gamepad)
             ["console"] = {},
             ["debug_menu"] = {},
             ["object_selector"] = {},
-            ["fast_forward"] = {}
+            ["fast_forward"] = {},
+            ["mod_rebind"] = {"gamepad:x"},
         }
+        for _,mod in ipairs(Kristal.Mods.getMods()) do
+            if mod.keybinds then
+                for _,v in pairs(mod.keybinds) do
+                    if v.gamepad then
+                        Input.gamepad_bindings[v.id] = Utils.copy(v.gamepad)
+                    else
+                        Input.gamepad_bindings[v.id] = {}
+                    end
+                end
+            end
+            if mod.libs then
+                for _,lib in pairs(mod.libs) do
+                    if lib.keybinds then
+                        for _,v in pairs(lib.keybinds) do
+                            if v.gamepad then
+                                Input.gamepad_bindings[v.id] = Utils.copy(v.gamepad)
+                            else
+                                Input.gamepad_bindings[v.id] = {}
+                            end
+                        end
+                    end
+                end
+            end
+        end
     end
 end
 
@@ -177,12 +371,24 @@ function Input.loadBinds()
                     table.insert(key_bind, key)
                 end
             end
-            Input.key_bindings[k] = key_bind
-            Input.gamepad_bindings[k] = gamepad_bind
+
+            if Input.key_bindings[k] then
+                Input.key_bindings[k] = key_bind
+            else
+                Input.stray_key_bindings[k] = key_bind
+            end
+
+            if Input.gamepad_bindings[k] then
+                Input.gamepad_bindings[k] = gamepad_bind
+            else
+                Input.stray_gamepad_bindings[k] = gamepad_bind
+            end
         end
     end
 end
 
+---@param number number
+---@return string
 function Input.orderedNumberToKey(number)
     if number <= #Input.order then
         return Input.order[number]
@@ -196,6 +402,7 @@ function Input.orderedNumberToKey(number)
                 index = index + 1
             end
         end
+        ---@diagnostic disable-next-line: return-type-mismatch
         return nil
     end
 end
@@ -205,7 +412,13 @@ function Input.saveBinds()
     for k,v in pairs(Input.key_bindings) do
         all_binds[k] = Utils.copy(v)
     end
+    for k,v in pairs(Input.stray_key_bindings) do
+        all_binds[k] = Utils.merge(all_binds[k] or {}, v)
+    end
     for k,v in pairs(Input.gamepad_bindings) do
+        all_binds[k] = Utils.merge(all_binds[k] or {}, v)
+    end
+    for k,v in pairs(Input.stray_gamepad_bindings) do
         all_binds[k] = Utils.merge(all_binds[k] or {}, v)
     end
 
@@ -224,6 +437,11 @@ function Input.saveBinds()
     love.filesystem.write("keybinds.json", JSON.encode(saved_binds))
 end
 
+---@param alias string
+---@param index number
+---@param key string
+---@param gamepad? boolean
+---@return boolean
 function Input.setBind(alias, index, key, gamepad)
     local bindings = gamepad and Input.gamepad_bindings or Input.key_bindings
 
@@ -263,10 +481,15 @@ function Input.setBind(alias, index, key, gamepad)
             end
         end
     end
+
     bindings[alias][index] = key
+
     return true
 end
 
+---@param alias string
+---@param gamepad? boolean
+---@return string|string[]|nil
 function Input.getPrimaryBind(alias, gamepad)
     if gamepad == nil then
         gamepad = Input.usingGamepad()
@@ -275,6 +498,9 @@ function Input.getPrimaryBind(alias, gamepad)
     return bindings and bindings[1] or nil
 end
 
+---@param key? string
+---@param clear_down? boolean
+---@return boolean|nil
 function Input.clear(key, clear_down)
     if key then
         local bindings = Input.getBoundKeys(key)
@@ -318,6 +544,16 @@ function Input.clear(key, clear_down)
         if clear_down then
             self.key_down = {}
             self.key_down_timer = {}
+        end
+        for i=1, self.mouse_button_max do
+            self.mouse_pressed[i] = {x = 0, y = 0, presses = 0}
+            self.mouse_released[i] = {x = 0, y = 0, presses = 0}
+            if not self.mouse_down[i] then
+                self.mouse_down[i] = {x = 0, y = 0, presses = 0, dx = 0, dy = 0}
+            else
+                self.mouse_down[i].dx = 0
+                self.mouse_down[i].dy = 0
+            end
         end
     end
 end
@@ -377,6 +613,8 @@ function love.gamepadaxis(joystick, axis, value)
     end
 end
 
+---@param key string
+---@param is_repeat boolean
 function Input.onKeyPressed(key, is_repeat)
     if not is_repeat then
         self.key_down[key] = true
@@ -389,14 +627,21 @@ function Input.onKeyPressed(key, is_repeat)
     Kristal.onKeyPressed(key, is_repeat)
 end
 
+---@param key string
 function Input.onKeyReleased(key)
     self.key_down[key] = false
     self.key_released[key] = true
-    
+
     self.key_repeated[key] = false
     self.key_down_timer[key] = nil
 
     Kristal.onKeyReleased(key)
+end
+
+---@param x number
+---@param y number
+function Input.onWheelMoved(x, y)
+    Kristal.onWheelMoved(x, y)
 end
 
 function Input.update()
@@ -415,10 +660,29 @@ function Input.update()
     end
 end
 
+---Vibrates the connected gamepad if it exists.
+---@param strength_left number
+---@param strength_right number
+---@param duration number
+---@overload fun(duration:number)
+---@overload fun(strength:number, duration:number)
+function Input.vibrate(strength_left, strength_right, duration)
+    if strength_right == nil then
+        strength_left, strength_right, duration = 1, 1, strength_left
+    elseif duration == nil then
+        strength_left, strength_right, duration = strength_left, strength_left, strength_right
+    end
+    if Input.connected_gamepad then
+        Input.connected_gamepad:setVibration(strength_left, strength_right, duration)
+    end
+end
+
+---@return boolean
 function Input.usingGamepad()
     return Input.active_gamepad ~= nil
 end
 
+---@return boolean
 function Input.hasGamepad()
     return Input.connected_gamepad ~= nil
 end
@@ -448,11 +712,11 @@ function love.gamepadreleased(joystick, button)
 end
 
 function love.wheelmoved(x, y)
-    if Kristal.DebugSystem then
-        Kristal.DebugSystem:onWheelMoved(x, y)
-    end
+    Input.onWheelMoved(x, y)
 end
 
+---@param key string
+---@return boolean
 function Input.down(key)
     local bindings = Input.getBoundKeys(key)
     if bindings then
@@ -477,6 +741,8 @@ function Input.down(key)
     end
 end
 
+---@param key string
+---@return boolean
 function Input.keyDown(key)
     if self.gamepad_locked and Input.isGamepad(key) then return false end
     if self.key_groups[key] then
@@ -489,6 +755,9 @@ function Input.keyDown(key)
     return self.key_down[key]
 end
 
+---@param key string
+---@param repeatable? boolean
+---@return boolean
 function Input.pressed(key, repeatable)
     local bindings = Input.getBoundKeys(key)
     if bindings then
@@ -516,6 +785,9 @@ function Input.pressed(key, repeatable)
     end
 end
 
+---@param key string
+---@param repeatable? boolean
+---@return boolean
 function Input.keyPressed(key, repeatable)
     if self.gamepad_locked and Input.isGamepad(key) then return false end
     if self.key_groups[key] then
@@ -525,15 +797,20 @@ function Input.keyPressed(key, repeatable)
             end
         end
     end
-    return self.key_pressed[key] or (repeatable and self.key_repeated[key])
+    return self.key_pressed[key] or (repeatable and self.key_repeated[key]) or false
 end
 
+---@param key string
+---@param repeatable? boolean
+---@return boolean
 function Input.shouldProcess(key, repeatable)
     -- Should this function still be called?
     return Input.keyPressed(key, repeatable)
     -- This is only a single function call right now, but might need to be expanded in the future
 end
 
+---@param key string
+---@return boolean
 function Input.released(key)
     local bindings = Input.getBoundKeys(key)
     if bindings then
@@ -561,6 +838,8 @@ function Input.released(key)
     end
 end
 
+---@param key string
+---@return boolean
 function Input.keyReleased(key)
     if self.gamepad_locked and Input.isGamepad(key) then return false end
     if self.key_groups[key] then
@@ -574,6 +853,8 @@ function Input.keyReleased(key)
     return self.key_released[key]
 end
 
+---@param key string
+---@return boolean
 function Input.up(key)
     local bindings = Input.getBoundKeys(key)
     if bindings then
@@ -598,6 +879,8 @@ function Input.up(key)
     end
 end
 
+---@param key string
+---@return boolean
 function Input.keyUp(key)
     if self.gamepad_locked and Input.isGamepad(key) then return true end
     if self.key_groups[key] then
@@ -610,6 +893,9 @@ function Input.keyUp(key)
     return not self.key_down[key]
 end
 
+---@param alias string
+---@param key string
+---@return boolean
 function Input.is(alias, key)
     if self.group_for_key[key] then
         key = self.group_for_key[key]
@@ -632,7 +918,10 @@ function Input.is(alias, key)
     return false
 end
 
-function Input.getText(alias, gamepad, return_sprite)
+---@param alias string
+---@param gamepad? boolean
+---@return string
+function Input.getText(alias, gamepad)
     local name = Input.getPrimaryBind(alias, gamepad) or "unbound"
     name = self.key_groups[alias] and self.key_groups[alias][1] or name
     if type(name) == "table" then
@@ -640,15 +929,28 @@ function Input.getText(alias, gamepad, return_sprite)
     else
         local is_gamepad, gamepad_button = Utils.startsWith(name, "gamepad:")
         if is_gamepad then
-            if return_sprite then
-                return Input.getButtonTexture(gamepad_button)
-            end
             return "[button:" .. gamepad_button .. "]"
         end
     end
     return "["..name:upper().."]"
 end
 
+---@param alias string
+---@param gamepad? boolean
+---@return love.Image
+function Input.getTexture(alias, gamepad)
+    local name = Input.getPrimaryBind(alias, gamepad) or "unbound"
+    name = self.key_groups[alias] and self.key_groups[alias][1] or name
+
+    local is_gamepad, gamepad_button = Utils.startsWith(name, "gamepad:")
+    if is_gamepad then
+        return Input.getButtonTexture(gamepad_button)
+    end
+
+    return Assets.getTexture("kristal/buttons/unknown")
+end
+
+---@return "switch"|"ps4"|"xbox"|nil
 function Input.getControllerType()
     if not Input.connected_gamepad then return nil end
 
@@ -658,12 +960,40 @@ function Input.getControllerType()
     if con("nintendo") or con("switch") or con("joy-con") or con("wii") or con("gamecube") or con("nso") or con("nes") then
         return "switch"
     end
-    if con("sony") or con("playstation") or con("%f[%a]ps") then
+    if con("sony") or con("playstation") or con("%f[%a]ps") or con("dualshock") or con("dualsense") or con("dualforce") then
         return "ps4"
     end
     return "xbox"
 end
 
+---@param bind string
+---@return string? name
+function Input.getBindName(bind)
+    for k,v in pairs(Kristal.Mods.getMods()) do
+        if v.keybinds then
+            for _,modBind in pairs(v.keybinds) do
+                if modBind.id == bind then
+                    return modBind.name
+                end
+            end
+        end
+        if v.libs then
+            for _,lib in pairs(v.libs) do
+                if lib.keybinds then
+                    for _,modBind in pairs(lib.keybinds) do
+                        if modBind.id == bind then
+                            return modBind.name
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return nil
+end
+
+---@param button string
+---@return love.Image
 function Input.getButtonTexture(button)
     return Assets.getTexture("kristal/buttons/" .. Input.getButtonSprite(button))
 end
@@ -701,6 +1031,8 @@ Input.button_sprites = {
     ["rightstick"]    = {switch = "switch/rStickClick", ps4 = "ps4/r3", xbox = "xbox/right_stick"},
 }
 
+---@param button string
+---@return string
 function Input.getButtonSprite(button)
     --local invert = false
 
@@ -964,34 +1296,47 @@ end
         
 ]]
 
+---@return boolean
 function Input.shift()
     return self.down("shift")
 end
 
+---@return boolean
 function Input.ctrl()
     return self.down("ctrl")
 end
 
+---@return boolean
 function Input.alt()
     return self.down("alt")
 end
 
+---@return boolean
 function Input.gui()
     return self.down("gui")
 end
 
+---@param key string
+---@return boolean
 function Input.isConfirm(key)
     return Input.is("confirm", key)
 end
 
+---@param key string
+---@return boolean
 function Input.isCancel(key)
     return Input.is("cancel", key)
 end
 
+---@param key string
+---@return boolean
 function Input.isMenu(key)
     return Input.is("menu", key)
 end
 
+---@param key string
+---@param which? "left"|"right"
+---@return boolean
 function Input.isThumbstick(key, which)
     return ((not which or which == "left") and (
             key == "gamepad:lsleft" or
@@ -1005,13 +1350,41 @@ function Input.isThumbstick(key, which)
             key == "gamepad:rsdown"))
 end
 
+---@param key string
+---@return boolean gamepad, string button
 function Input.isGamepad(key)
     return Utils.startsWith(key, "gamepad:")
 end
 
+function Input.onMousePressed(x, y, button, istouch, presses)
+    self.mouse_button_max = math.max(self.mouse_button_max, button) -- some mouses have more than 3 buttons, always support this by extending the default count
+    self.mouse_pressed[button] = {x = x, y = y, presses = presses}
+    self.mouse_down[button] = {x = x, y = y, presses = presses, dx = 0, dy = 0}
+end
+
+function Input.onMouseReleased(x, y, button, istouch, presses)
+    self.mouse_released[button] = {x = x, y = y, presses = presses}
+    self.mouse_down[button] = {x = 0, y = 0, presses = 0, dx = 0, dx = 0}
+end
+
+function Input.onMouseMoved(x, y, dx, dy, istouch)
+    for i=1, self.mouse_button_max do
+        if self.mouse_down[i].presses > 0 then
+            self.mouse_down[i].x = x
+            self.mouse_down[i].y = y
+            self.mouse_down[i].dx = dx
+            self.mouse_down[i].dy = dy
+        end
+    end
+end
+
+---@param x? number
+---@param y? number
+---@param relative? boolean
+---@return number x, number y
 function Input.getMousePosition(x, y, relative)
-    local x = x or love.mouse.getX()
-    local y = y or love.mouse.getY()
+    x = x or love.mouse.getX()
+    y = y or love.mouse.getY()
     local off_x, off_y = Kristal.getSideOffsets()
     local floor = math.floor
     if relative then
@@ -1022,9 +1395,73 @@ function Input.getMousePosition(x, y, relative)
            floor((y - off_y) / Kristal.getGameScale())
 end
 
+---@param button? number
+---@return boolean success, number x, number y, number presses
+function Input.mousePressed(button)
+    if not button then
+        for i=1, self.mouse_button_max do
+            local success, x, y, presses = self.mousePressed(i)
+            if success then
+                return success, x, y, presses
+            end
+        end
+        return false, 0, 0, 0
+    end
+    local check = self.mouse_pressed[button]
+    if not check or check.presses == 0 then
+        return false, 0, 0, 0
+    else
+        return true, check.x, check.y, check.presses
+    end
+end
+
+---@param button? number
+---@return boolean success, number x, number y, number dx, number dy, number presses
+function Input.mouseDown(button)
+    if not button then
+        for i=1, self.mouse_button_max do
+            local success, x, y, presses = self.mouseDown(i)
+            if success then
+                return success, x, y, presses
+            end
+        end
+        return false, 0, 0, 0
+    end
+    local check = self.mouse_down[button]
+    if not check or check.presses == 0 then
+        return false, 0, 0, 0
+    else
+        return true, check.x, check.y, check.dx, check.dy, check.presses
+    end
+end
+
+---@param button? number
+---@return boolean success, number x, number y, number presses
+function Input.mouseReleased(button)
+    if not button then
+        for i=1, self.mouse_button_max do
+            local success, x, y, presses = self.mouseReleased(i)
+            if success then
+                return success, x, y, presses
+            end
+        end
+        return false, 0, 0, 0
+    end
+    local check = self.mouse_released[button]
+    if not check or check.presses == 0 then
+        return false, 0, 0, 0
+    else
+        return true, check.x, check.y, check.presses
+    end
+end
+
+---@param x? number
+---@param y? number
+---@param relative? boolean
+---@return number x, number y
 function Input.getGamepadCursorPosition(x, y, relative)
-    local x = x or (self.gamepad_cursor_x * Kristal.getGameScale())
-    local y = y or (self.gamepad_cursor_y * Kristal.getGameScale())
+    x = x or (self.gamepad_cursor_x * Kristal.getGameScale())
+    y = y or (self.gamepad_cursor_y * Kristal.getGameScale())
     local off_x, off_y = Kristal.getSideOffsets()
     local floor = math.floor
     if relative then
@@ -1035,6 +1472,10 @@ function Input.getGamepadCursorPosition(x, y, relative)
            floor((y - off_y) / Kristal.getGameScale())
 end
 
+---@param x? number
+---@param y? number
+---@param relative? boolean
+---@return number x, number y
 function Input.getCurrentCursorPosition(x, y, relative)
     if self.usingGamepad() then
         return self.getGamepadCursorPosition(x, y, relative)

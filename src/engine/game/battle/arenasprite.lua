@@ -1,7 +1,19 @@
+--- A special object used to draw the arena to the screen.
+---
+---@class ArenaSprite : Object
+---
+---@field arena         Arena   The arena this Object is drawing.
+---
+---@field background    boolean Whether to draw the arena's background.
+---
+---@overload fun(arena:Arena, x?: number, y?:number) : ArenaSprite
 local ArenaSprite, super = Class(Object)
 
+---@param arena Arena
+---@param x?    number
+---@param y?    number
 function ArenaSprite:init(arena, x, y)
-    super:init(self, x, y)
+    super.init(self, x, y)
 
     self.arena = arena
 
@@ -20,21 +32,21 @@ function ArenaSprite:update()
     self.width = self.arena.width
     self.height = self.arena.height
 
-    super:update(self)
+    super.update(self)
 end
 
 function ArenaSprite:draw()
     if self.background then
-        love.graphics.setColor(self.arena:getBackgroundColor())
+        Draw.setColor(self.arena:getBackgroundColor())
         self:drawBackground()
     end
 
-    super:draw(self)
+    super.draw(self)
 
     local r,g,b,a = self:getDrawColor()
     local arena_r,arena_g,arena_b,arena_a = self.arena:getDrawColor()
 
-    love.graphics.setColor(r * arena_r, g * arena_g, b * arena_b, a * arena_a)
+    Draw.setColor(r * arena_r, g * arena_g, b * arena_b, a * arena_a)
     love.graphics.setLineStyle("rough")
     love.graphics.setLineWidth(self.arena.line_width)
     love.graphics.line(unpack(self.arena.border_line))
@@ -46,8 +58,10 @@ function ArenaSprite:drawBackground()
     end
 end
 
+---@param key any
+---@return boolean
 function ArenaSprite:canDeepCopyKey(key)
-    return super:canDeepCopyKey(self, key) and key ~= "arena"
+    return super.canDeepCopyKey(self, key) and key ~= "arena"
 end
 
 return ArenaSprite

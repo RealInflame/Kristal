@@ -1,7 +1,9 @@
+---@class DarkItemMenu : Object
+---@overload fun(...) : DarkItemMenu
 local DarkItemMenu, super = Class(Object)
 
 function DarkItemMenu:init()
-    super:init(self, 92, 112, 457, 227)
+    super.init(self, 92, 112, 457, 227)
 
     self.draw_children_below = 0
 
@@ -25,6 +27,9 @@ function DarkItemMenu:init()
     self.item_header_selected = 1
     self.item_selected_x = 1
     self.item_selected_y = 1
+    for _, item in ipairs(self:getCurrentStorage()) do
+        item:onMenuOpen(self.parent)
+    end
 
     self.selected_item = 1
 end
@@ -46,6 +51,9 @@ function DarkItemMenu:getSelectedItem()
 end
 
 function DarkItemMenu:updateSelectedItem()
+    if not Game.world.menu or (Game.world.menu ~= self.parent) then -- will be true if an item creates a new menu
+        return
+    end
     local items = self:getCurrentStorage()
     if #items == 0 then
         self.state = "MENU"
@@ -106,15 +114,26 @@ function DarkItemMenu:update()
             Game.world.menu:closeBox()
             return
         end
+        local header_move = 0
         if Input.pressed("left") then
-            self.item_header_selected = self.item_header_selected - 1
-            self.ui_move:stop()
-            self.ui_move:play()
+            header_move = -1
         end
         if Input.pressed("right") then
-            self.item_header_selected = self.item_header_selected + 1
+            header_move = 1
+        end
+        if header_move ~= 0 then
+            local prev_type = self:getCurrentItemType()
+            self.item_header_selected = Utils.clampWrap(self.item_header_selected + header_move, 1, 3)
             self.ui_move:stop()
             self.ui_move:play()
+            if prev_type ~= self:getCurrentItemType() then
+                for _, item in ipairs(Game.inventory:getStorage(prev_type)) do
+                    item:onMenuClose(self.parent)
+                end
+                for _, item in ipairs(self:getCurrentStorage()) do
+                    item:onMenuOpen(self.parent)
+                end
+            end
         end
         if self.item_header_selected < 1 then self.item_header_selected = 3 end
         if self.item_header_selected > 3 then self.item_header_selected = 1 end
@@ -217,7 +236,11 @@ function DarkItemMenu:update()
         end
     end
 
-    super:update(self)
+    for _, item in ipairs(self:getCurrentStorage()) do
+        item:onMenuUpdate(self.parent)
+    end
+
+    super.update(self)
 end
 
 function DarkItemMenu:draw()
@@ -227,11 +250,11 @@ function DarkItemMenu:draw()
 
     for i,name in ipairs(headers) do
         if self.state == "MENU" then
-            love.graphics.setColor(PALETTE["world_header"])
+            Draw.setColor(PALETTE["world_header"])
         elseif self.item_header_selected == i then
-            love.graphics.setColor(PALETTE["world_header_selected"])
+            Draw.setColor(PALETTE["world_header_selected"])
         else
-            love.graphics.setColor(PALETTE["world_gray"])
+            Draw.setColor(PALETTE["world_gray"])
         end
         local x = 88 + ((i - 1) * 120)
         love.graphics.print(name, x, -2)
@@ -248,29 +271,30 @@ function DarkItemMenu:draw()
         heart_y = 50 + (self.item_selected_y - 1) * 30
     end
     if self.state ~= "USE" then
-        love.graphics.setColor(Game:getSoulColor())
-        love.graphics.draw(self.heart_sprite, heart_x, heart_y)
+        Draw.setColor(Game:getSoulColor())
+        Draw.draw(self.heart_sprite, heart_x, heart_y)
     end
 
     local item_x = 0
     local item_y = 0
     local inventory = self:getCurrentStorage()
 
-    for index, item in ipairs(inventory) do
+    for _, item in ipairs(inventory) do
         -- Draw the item shadow
-        love.graphics.setColor(PALETTE["world_text_shadow"])
-        love.graphics.print(item:getWorldMenuName(), 54 + (item_x * 210) + 2, 40 + (item_y * 30) + 2)
+        Draw.setColor(PALETTE["world_text_shadow"])
+        local name = item:getWorldMenuName()
+        love.graphics.print(name, 54 + (item_x * 210) + 2, 40 + (item_y * 30) + 2)
 
         if self.state == "MENU" then
-            love.graphics.setColor(PALETTE["world_gray"])
+            Draw.setColor(PALETTE["world_gray"])
         else
             if item.usable_in == "world" or item.usable_in == "all" then
-                love.graphics.setColor(PALETTE["world_text"])
+                Draw.setColor(PALETTE["world_text"])
             else
-                love.graphics.setColor(PALETTE["world_text_unusable"])
+                Draw.setColor(PALETTE["world_text_unusable"])
             end
         end
-        love.graphics.print(item:getWorldMenuName(), 54 + (item_x * 210), 40 + (item_y * 30))
+        love.graphics.print(name, 54 + (item_x * 210), 40 + (item_y * 30))
         item_x = item_x + 1
         if item_x >= 2 then
             item_x = 0
@@ -278,7 +302,12 @@ function DarkItemMenu:draw()
         end
     end
 
-    super:draw(self)
+    for _, item in ipairs(inventory) do
+        Draw.setColor(1,1,1)
+        item:onMenuDraw(self.parent)
+    end
+
+    super.draw(self)
 end
 
 return DarkItemMenu

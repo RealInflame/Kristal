@@ -1,7 +1,10 @@
+--- Followers are a type of Overworld character that follow the player's movements.
+---@class Follower : Character
+---@overload fun(chara: string|Actor, x?: number, y?: number, target: Player) : Follower
 local Follower, super = Class(Character)
 
 function Follower:init(chara, x, y, target)
-    super:init(self, chara, x, y)
+    super.init(self, chara, x, y)
 
     self.is_follower = true
 
@@ -32,11 +35,11 @@ function Follower:onRemove(parent)
         table.remove(self.world.followers, self.index)
     end
 
-    super:onRemove(self, parent)
+    super.onRemove(self, parent)
 end
 
 function Follower:onAdd(parent)
-    super:onAdd(self, parent)
+    super.onAdd(self, parent)
 
     local target = self:getTarget()
     if target then
@@ -128,6 +131,7 @@ function Follower:moveToTarget(speed)
     end
 end
 
+--- Adds this follower's current position to their movement history.
 function Follower:interpolateHistory()
     local target = self:getTarget()
 
@@ -243,7 +247,7 @@ function Follower:update()
         self.blushing = false
     end
 
-    super:update(self)
+    super.update(self)
 end
 
 return Follower

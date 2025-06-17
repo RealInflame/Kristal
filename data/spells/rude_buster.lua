@@ -1,7 +1,7 @@
 local spell, super = Class(Spell, "rude_buster")
 
 function spell:init()
-    super:init(self)
+    super.init(self)
 
     -- Display name
     self.name = "Rude Buster"
@@ -9,7 +9,11 @@ function spell:init()
     self.cast_name = nil
 
     -- Battle description
-    self.effect = "Rude\nDamage"
+    if Game.chapter <= 3 then
+        self.effect = "Rude\nDamage"
+    else
+        self.effect = "Rude\ndamage"
+    end
     -- Menu description
     self.description = "Deals moderate Rude-elemental damage to\none foe. Depends on Attack & Magic."
 
@@ -28,7 +32,7 @@ function spell:getCastMessage(user, target)
 end
 
 function spell:getTPCost(chara)
-    local cost = super:getTPCost(self, chara)
+    local cost = super.getTPCost(self, chara)
     if chara and chara:checkWeapon("devilsknife") then
         cost = cost - 10
     end
@@ -53,9 +57,8 @@ function spell:onCast(user, target)
         local x, y = user:getRelativePos(user.width, user.height/2 - 10, Game.battle)
         local tx, ty = target:getRelativePos(target.width/2, target.height/2, Game.battle) --target:getRelativePos(20, 20, Game.battle)
         local blast = RudeBusterBeam(false, x, y, tx, ty, function(pressed)
-            local damage = math.ceil((user.chara:getStat("magic") * 5) + (user.chara:getStat("attack") * 11))-- - (target.defense * 3))
+            local damage = self:getDamage(user, target, pressed)
             if pressed then
-                damage = damage + 30
                 Assets.playSound("scytheburst")
             end
             target:flash()
@@ -70,6 +73,14 @@ function spell:onCast(user, target)
         Game.battle:addChild(blast)
     end)
     return false
+end
+
+function spell:getDamage(user, target, pressed)
+    local damage = math.ceil((user.chara:getStat("magic") * 5) + (user.chara:getStat("attack") * 11) - (target.defense * 3))
+    if pressed then
+        damage = damage + 30
+    end
+    return damage
 end
 
 return spell

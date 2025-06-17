@@ -1,3 +1,45 @@
+--- The heart of Kristal - this class stores serves as the global that almost everything during gameplay is stored under in some way or another. \
+--- Game itself is mainly responsible for changing between states, handling player control, and accessing overarching features across gameplay such as the inventory or party members.
+---@class Game
+---@field stage             Stage
+---@field world             World
+---@field battle            Battle
+---@field shop              Shop
+---@field gameover          GameOver
+---@field legend            Legend
+---@field inventory         DarkInventory|LightInventory
+---@field dark_inventory    DarkInventory
+---@field light_inventory   LightInventory
+---@field quick_save        SaveData
+---@field lock_movement     boolean
+---@field key_repeat        boolean
+---@field started           boolean
+---@field border            Border
+---
+---@field previous_state    string
+---@field state             string
+---@field music             Music
+---
+---@field chapter           integer
+---@field save_name         string
+---@field save_level        integer
+---@field playtime          number
+---@field light             boolean
+---@field money             integer
+---@field xp                integer
+---@field tension           number
+---@field max_tension       number
+---@field lw_money          integer
+---@field level_up_count    integer
+---@field temp_followers    table<[string, number]|string>
+---@field flags             table<[string, any]>
+---@field party             PartyMember[]
+---@field party_data        PartyMember[]
+---@field recruits_data     Recruit[]
+---
+---@field fader             Fader
+---@field max_followers     integer
+---@field is_new_file       boolean
 local Game = {}
 
 function Game:clear()
@@ -20,6 +62,7 @@ function Game:clear()
     self.battle = nil
     self.shop = nil
     self.gameover = nil
+    self.legend = nil
     self.inventory = nil
     self.quick_save = nil
     self.lock_movement = false
@@ -28,21 +71,33 @@ function Game:clear()
     self.border = "simple"
 end
 
-function Game:enter(previous_state, save_id, save_name)
+---@overload fun(self: Game, previous_state: string, save_data: SaveData, save_id: number)
+---@param previous_state    string
+---@param save_data?        SaveData
+---@param save_id?          number
+---@param save_name?        string
+---@param fade?             boolean
+function Game:enter(previous_state, save_id, save_name, fade)
     self.previous_state = previous_state
 
     self.music = Music()
 
     self.quick_save = nil
 
-    Kristal.callEvent("init")
+    Kristal.callEvent(KRISTAL_EVENT.init)
 
     self.lock_movement = false
 
-    if save_id then
-        Kristal.loadGame(save_id, true)
+    fade = fade ~= false
+    if type(save_id) == "table" then
+        local save = save_id
+        save_id = save_name
+        save_name = nil
+        self:load(save, save_id, fade)
+    elseif save_id then
+        Kristal.loadGame(save_id, fade)
     else
-        self:load(nil, nil, true)
+        self:load(nil, nil, fade)
     end
 
     if save_name then
@@ -51,13 +106,20 @@ function Game:enter(previous_state, save_id, save_name)
 
     self.started = true
 
-    if Kristal.getModOption("encounter") then
-        self:encounter(Kristal.getModOption("encounter"), false)
-    elseif Kristal.getModOption("shop") then
-        self:enterShop(Kristal.getModOption("shop"), {menu = true})
-    end
+    DISCORD_RPC_PRESENCE = {}
 
-    Kristal.callEvent("postInit", self.is_new_file)
+    Kristal.callEvent(KRISTAL_EVENT.postInit, self.is_new_file)
+
+    if next(DISCORD_RPC_PRESENCE) == nil then
+        Kristal.setPresence({
+            state = Kristal.callEvent(KRISTAL_EVENT.getPresenceState) or ("Playing " .. (Kristal.getModOption("name") or "a mod")),
+            details = Kristal.callEvent(KRISTAL_EVENT.getPresenceDetails),
+            largeImageKey = Kristal.callEvent(KRISTAL_EVENT.getPresenceImage) or "logo",
+            largeImageText = "Kristal v" .. tostring(Kristal.Version),
+            startTimestamp = math.floor(os.time() - self.playtime),
+            instance = 0
+        })
+    end
 end
 
 
@@ -66,21 +128,33 @@ function Game:leave()
     self.quick_save = nil
 end
 
+---@return Border
 function Game:getBorder()
     return self.border
 end
 
+---@param border?   string|Border
+---@param time?     number
 function Game:setBorder(border, time)
     time = time or 1
-
-    if not Kristal.stageTransitionExists() then
-        if time == 0 then
-            Kristal.showBorder(0)
-        elseif time > 0 and Kristal.getBorder() ~= border then
-            Kristal.transitionBorder(time)
-        end
+    local new_border_id = border
+    if type(border) ~= "string" then
+        new_border_id = border.id
+    end
+    local current_border_id
+    if Kristal.getBorder() then
+        current_border_id = Kristal.getBorder().id
+    end
+    if time == 0 then
+        Kristal.showBorder(0)
+    elseif time > 0 and current_border_id ~= new_border_id then
+        Kristal.transitionBorder(time)
     end
 
+    if type(border) == "string" then
+        local border_class = Registry.createBorder(border)
+        if border_class then border = border_class end
+    end
     self.border = border
 end
 
@@ -90,15 +164,19 @@ function Game:returnToMenu()
     self.state = "EXIT"
 end
 
+---@param key           string
+---@param merge?        boolean
+---@param deep_merge?   boolean
+---@return any
 function Game:getConfig(key, merge, deep_merge)
     local default_config = Kristal.ChapterConfigs[Utils.clamp(self.chapter, 1, #Kristal.ChapterConfigs)]
 
     if not Mod then return default_config[key] end
 
-    local mod_result = Kristal.callEvent("getConfig", key)
+    local mod_result = Kristal.callEvent(KRISTAL_EVENT.getConfig, key)
     if mod_result ~= nil then return mod_result end
 
-    local mod_config = Mod.info and Mod.info.config and Utils.getAnyCase(Mod.info.config, "Kristal") or {}
+    local mod_config = Mod.info and Mod.info.config and Utils.getAnyCase(Mod.info.config, "kristal") or {}
 
     local default_value = Utils.getAnyCase(default_config, key)
     local mod_value = Utils.getAnyCase(mod_config, key)
@@ -114,6 +192,7 @@ function Game:getConfig(key, merge, deep_merge)
     end
 end
 
+---@return Music
 function Game:getActiveMusic()
     if self.state == "OVERWORLD" then
         return self.world.music
@@ -123,11 +202,14 @@ function Game:getActiveMusic()
         return self.shop.music
     elseif self.state == "GAMEOVER" then
         return self.gameover.music
+    elseif self.state == "LEGEND" then
+        return self.legend.music
     else
         return self.music
     end
 end
 
+---@return {name: string, level: integer, playtime: number, room_name: string}
 function Game:getSavePreview()
     return {
         name = self.save_name,
@@ -137,6 +219,14 @@ function Game:getSavePreview()
     }
 end
 
+---@overload fun(self: Game) : SaveData
+---@overload fun(self: Game, marker: string) : SaveData
+---@overload fun(self: Game, position: {x: number, y: number}) : SaveData
+---@param x number
+---@param y number
+---@param marker string
+---@param position {x: number, y: number}
+---@return SaveData
 function Game:save(x, y)
     local data = {
         chapter = self.chapter,
@@ -160,7 +250,7 @@ function Game:save(x, y)
 
         level_up_count = self.level_up_count,
 
-        border = self.border,
+        border = self.border.id,
 
         temp_followers = self.temp_followers,
 
@@ -181,19 +271,31 @@ function Game:save(x, y)
     for _,party in ipairs(self.party) do
         table.insert(data.party, party.id)
     end
+    
+    data.default_equip_slots = self.default_equip_slots
 
     data.inventory = self.inventory:save()
+    data.light_inventory = self.light_inventory:save()
+    data.dark_inventory = self.dark_inventory:save()
 
     data.party_data = {}
     for k,v in pairs(self.party_data) do
         data.party_data[k] = v:save()
     end
+    
+    data.recruits_data = {}
+    for k,v in pairs(self.recruits_data) do
+        data.recruits_data[k] = v:save()
+    end
 
-    Kristal.callEvent("save", data)
+    Kristal.callEvent(KRISTAL_EVENT.save, data)
 
     return data
 end
 
+---@param data?     SaveData
+---@param index?    number
+---@param fade?     boolean
 function Game:load(data, index, fade)
     self.is_new_file = data == nil
 
@@ -201,12 +303,10 @@ function Game:load(data, index, fade)
 
     self:clear()
 
-    if not Kristal.stageTransitionExists() then
-        BORDER_ALPHA = 0
-        Kristal.showBorder(1)
-    end
+    BORDER_ALPHA = 0
+    Kristal.showBorder(1)
 
-    -- states: OVERWORLD, BATTLE, SHOP, GAMEOVER
+    -- states: OVERWORLD, BATTLE, SHOP, GAMEOVER, LEGEND
     self.state = "OVERWORLD"
 
     self.stage = Stage()
@@ -229,12 +329,15 @@ function Game:load(data, index, fade)
     self.max_followers = Kristal.getModOption("maxFollowers") or 10
 
     self.light = false
+    
+    -- Used to carry the soul invulnerability frames between waves
+    self.old_soul_inv_timer = 0
 
     -- BEGIN SAVE FILE VARIABLES --
 
     self.chapter = data.chapter or Kristal.getModOption("chapter") or 2
 
-    self.save_name = data.name or "PLAYER"
+    self.save_name = data.name or self.save_name or "PLAYER"
     self.save_level = data.level or self.chapter
     self.save_id = index or self.save_id or 1
 
@@ -250,10 +353,24 @@ function Game:load(data, index, fade)
             end
         end
     end
-
+    
     self.party = {}
     for _,id in ipairs(data.party or Kristal.getModOption("party") or {"kris"}) do
-        table.insert(self.party, self:getPartyMember(id))
+        local ally = self:getPartyMember(id)
+        if ally then
+            table.insert(self.party, ally)
+        else
+            Kristal.Console:error("Could not load party member \"" ..id.."\"")
+        end
+    end
+    
+    self:initRecruits()
+    if data.recruits_data then
+        for k,v in pairs(data.recruits_data) do
+            if self.recruits_data[k] then
+                self.recruits_data[k]:load(v)
+            end
+        end
     end
 
     if data.temp_followers then
@@ -287,6 +404,11 @@ function Game:load(data, index, fade)
 
         self.light = map.light or false
     end
+    
+    self.default_equip_slots = data.default_equip_slots or 48
+    if self.is_new_file and Game:getConfig("lessEquipments") then
+        self.default_equip_slots = 12
+    end
 
     if self.light then
         self.inventory = LightInventory()
@@ -294,6 +416,15 @@ function Game:load(data, index, fade)
         self.inventory = DarkInventory()
     end
 
+    self.light_inventory = LightInventory()
+    if data.light_inventory then
+        self.light_inventory:load(data.light_inventory)
+    end
+    self.dark_inventory = DarkInventory()
+    if data.dark_inventory then
+        self.dark_inventory:load(data.dark_inventory)
+    end
+    
     if data.inventory then
         self.inventory:load(data.inventory)
     else
@@ -351,7 +482,7 @@ function Game:load(data, index, fade)
 
     -- END SAVE FILE VARIABLES --
 
-    Kristal.callEvent("load", data, self.is_new_file, index)
+    Kristal.callEvent(KRISTAL_EVENT.load, data, self.is_new_file, index)
 
     -- Load the map if we have one
     if map then
@@ -365,8 +496,20 @@ function Game:load(data, index, fade)
     Kristal.DebugSystem:refresh()
 
     self.started = true
+    
+    self.nothing_warn = true
+    if self.is_new_file then
+        if Kristal.getModOption("encounter") then
+            self:encounter(Kristal.getModOption("encounter"), false)
+        elseif Kristal.getModOption("shop") then
+            self:enterShop(Kristal.getModOption("shop"), {menu = true})
+        end
+    end
+
+    Kristal.callEvent(KRISTAL_EVENT.postLoad)
 end
 
+---@param light? boolean
 function Game:setLight(light)
     light = light or false
 
@@ -386,19 +529,23 @@ function Game:setLight(light)
     end
 end
 
+---@return boolean
 function Game:isLight()
     return self.light
 end
 
 function Game:convertToLight()
-    if self.inventory:hasItem("cell_phone") then
+    local inventory = self.inventory
+    ---@cast inventory DarkInventory
+
+    if inventory:hasItem("cell_phone") then
         self:setFlag("has_cell_phone", true)
-        self.inventory:removeItem("cell_phone")
+        inventory:removeItem("cell_phone")
     else
         self:setFlag("has_cell_phone", false)
     end
 
-    self.inventory = self.inventory:convertToLight()
+    self.inventory = inventory:convertToLight()
 
     for _,chara in pairs(self.party_data) do
         chara:convertToLight()
@@ -406,7 +553,10 @@ function Game:convertToLight()
 end
 
 function Game:convertToDark()
-    self.inventory = self.inventory:convertToDark()
+    local inventory = self.inventory
+    ---@cast inventory LightInventory
+
+    self.inventory = inventory:convertToDark()
 
     for _,chara in pairs(self.party_data) do
         chara:convertToDark()
@@ -417,6 +567,8 @@ function Game:convertToDark()
     end
 end
 
+---@param x? number
+---@param y? number
 function Game:gameOver(x, y)
     Kristal.hideBorder(0)
 
@@ -425,15 +577,45 @@ function Game:gameOver(x, y)
     if self.world    then self.world   :remove() end
     if self.shop     then self.shop    :remove() end
     if self.gameover then self.gameover:remove() end
+    if self.legend   then self.legend  :remove() end
 
     self.gameover = GameOver(x or 0, y or 0)
     self.stage:addChild(self.gameover)
 end
 
+---@param cutscene          string
+---@param legend_options?   table
+---@param fade_options?     table
+function Game:fadeIntoLegend(cutscene, legend_options, fade_options)
+    legend_options = legend_options or {}
+    fade_options = fade_options or {}
+
+    fade_options["speed"] = fade_options["speed"] or 2
+    fade_options["music"] = fade_options["music"] or true
+
+    Game.lock_movement = true
+    Game.world.fader:fadeOut(function() Game:startLegend(cutscene, legend_options) end, fade_options)
+end
+
+---@param cutscene  string
+---@param options?  table
+function Game:startLegend(cutscene, options)
+
+    if self.legend then
+        self.legend:remove()
+    end
+
+    self.state = "LEGEND"
+    self.legend = Legend(cutscene, options)
+    self.stage:addChild(self.legend)
+end
+
+---@param ... unknown
 function Game:saveQuick(...)
     self.quick_save = Utils.copy(self:save(...), true)
 end
 
+---@param fade? boolean
 function Game:loadQuick(fade)
     local save = self.quick_save
     if save then
@@ -444,6 +626,11 @@ function Game:loadQuick(fade)
     self.quick_save = save
 end
 
+--- Starts a battle using the specified encounter file.
+---@param encounter     Encounter|string    The encounter id or instance to use for this battle.
+---@param transition?   boolean|string      Whether to start in the transition state (Defaults to `true`). As a string, represents the state to start the battle in.
+---@param enemy?        Character|table     An enemy instance or list of enemies as `Character`s in the world that will transition into the battle.
+---@param context?      ChaserEnemy
 function Game:encounter(encounter, transition, enemy, context)
     if transition == nil then transition = true end
 
@@ -474,6 +661,7 @@ function Game:encounter(encounter, transition, enemy, context)
     self.stage:addChild(self.battle)
 end
 
+---@param shop string|Shop
 function Game:setupShop(shop)
     if self.shop then
         error("Attempt to enter shop while already in shop")
@@ -491,17 +679,22 @@ function Game:setupShop(shop)
     self.shop:postInit()
 end
 
+--- Enters a shop
+---@param shop      string|Shop The shop to enter
+---@param options?  table       An optional table of [`leave_options`](lua://Shop.leave_options) for exiting the shop
 function Game:enterShop(shop, options)
     -- Add the shop to the stage and enter it.
-    if not self.shop then
-        self:setupShop(shop)
+    if self.shop then
+        self.shop:leaveImmediate()
     end
+
+    self:setupShop(shop)
 
     if options then
         self.shop.leave_options = options
     end
 
-    if self.world then
+    if self.world and self.shop.shop_music then
         self.world.music:stop()
     end
 
@@ -511,10 +704,17 @@ function Game:enterShop(shop, options)
     self.shop:onEnter()
 end
 
+--- Sets the value of the flag named `flag` to `value`
+---@param flag  string
+---@param value any
 function Game:setFlag(flag, value)
     self.flags[flag] = value
 end
 
+--- Gets the value of the flag named `flag`, returning `default` if the flag does not exist
+---@param flag      string
+---@param default?  any
+---@return any
 function Game:getFlag(flag, default)
     local result = self.flags[flag]
     if result == nil then
@@ -524,6 +724,10 @@ function Game:getFlag(flag, default)
     end
 end
 
+--- Adds `amount` to a numeric flag named `flag` (or defines it if it does not exist)
+---@param flag      string  The name of the flag to add to
+---@param amount?   number  (Defaults to `1`)
+---@return number new_value
 function Game:addFlag(flag, amount)
     self.flags[flag] = (self.flags[flag] or 0) + (amount or 1)
     return self.flags[flag]
@@ -532,17 +736,65 @@ end
 function Game:initPartyMembers()
     self.party_data = {}
     for id,_ in pairs(Registry.party_members) do
-        self.party_data[id] = Registry.createPartyMember(id)
+        if Registry.getPartyMember(id) then
+            self.party_data[id] = Registry.createPartyMember(id)
+        else
+            error("Attempted to add non-existent member \"" .. id .. "\" to the party")
+        end
     end
     
 end
 
+function Game:initRecruits()
+    self.recruits_data = {}
+    for id,_ in pairs(Registry.recruits) do
+        if Registry.getRecruit(id) then
+            self.recruits_data[id] = Registry.createRecruit(id)
+        else
+            error("Attempted to create non-existent recruit \"" .. id .. "\"")
+        end
+    end
+end
+
+---@param id string
+---@return PartyMember?
 function Game:getPartyMember(id)
     if self.party_data[id] then
         return self.party_data[id]
     end
 end
 
+---@param id string
+---@return Recruit?
+function Game:getRecruit(id)
+    if self.recruits_data[id] then
+        return self.recruits_data[id]
+    end
+end
+
+---@param include_incomplete?   boolean
+---@param include_hidden?       boolean
+---@return Recruit[]
+function Game:getRecruits(include_incomplete, include_hidden)
+    local recruits = {}
+    for id,recruit in pairs(Game.recruits_data) do
+        if (not recruit:getHidden() or include_hidden) and (recruit:getRecruited() == true or include_incomplete and type(recruit:getRecruited()) == "number" and recruit:getRecruited() > 0) then
+            table.insert(recruits, recruit)
+        end
+    end
+    table.sort(recruits, function(a,b) return a.index < b.index end)
+    return recruits
+end
+
+---@param recruit string
+---@return boolean
+function Game:hasRecruit(recruit)
+    return self:getRecruit(recruit):getRecruited() == true
+end
+
+---@param chara     string|PartyMember
+---@param index?    any
+---@return any
 function Game:addPartyMember(chara, index)
     if type(chara) == "string" then
         chara = self:getPartyMember(chara)
@@ -555,13 +807,17 @@ function Game:addPartyMember(chara, index)
     return chara
 end
 
+---@param chara string|PartyMember
+---@return PartyMember?
 function Game:removePartyMember(chara)
     if type(chara) == "string" then
         chara = self:getPartyMember(chara)
     end
     Utils.removeFromTable(self.party, chara)
+    return chara
 end
 
+---@param ... string|PartyMember
 function Game:setPartyMembers(...)
     local args = {...}
     self.party = {}
@@ -574,26 +830,51 @@ function Game:setPartyMembers(...)
     end
 end
 
+---@param chara string|PartyMember
+---@return boolean?
 function Game:hasPartyMember(chara)
     if type(chara) == "string" then
         chara = self:getPartyMember(chara)
     end
-    for _,party_member in ipairs(self.party) do
-        if party_member.id == chara.id then
-            return true
+    if chara then
+        for _,party_member in ipairs(self.party) do
+            if party_member.id == chara.id then
+                return true
+            end
         end
+        return false
     end
-    return false
 end
 
+---@param chara string|PartyMember
+---@param index integer
+---@return string|PartyMember
 function Game:movePartyMember(chara, index)
     if type(chara) == "string" then
         chara = self:getPartyMember(chara)
     end
     self:removePartyMember(chara)
     self:addPartyMember(chara, index)
+    return chara
 end
 
+---@param chara string|PartyMember
+---@return integer
+function Game:getPartyIndex(chara)
+    if type(chara) == "string" then
+        chara = self:getPartyMember(chara)
+    end
+    for i,party_member in ipairs(self.party) do
+        if party_member.id == chara.id then
+            return i
+        end
+    end
+    return nil
+end
+
+---@param item_id string
+---@return boolean
+---@return integer
 function Game:checkPartyEquipped(item_id)
     local success, count = false, 0
     for _,party in ipairs(self.party) do
@@ -610,7 +891,9 @@ function Game:checkPartyEquipped(item_id)
     return success, count
 end
 
+---@return PartyMember
 function Game:getSoulPartyMember()
+    ---@type PartyMember?
     local current
     for _,party in ipairs(self.party) do
         if not current or (party:getSoulPriority() > current:getSoulPriority()) then
@@ -620,7 +903,16 @@ function Game:getSoulPartyMember()
     return current
 end
 
+---@return integer
+---@return integer
+---@return integer
+---@return integer
 function Game:getSoulColor()
+    local mr, mg, mb, ma = Kristal.callEvent(KRISTAL_EVENT.getSoulColor)
+    if mr ~= nil then
+        return mr, mg, mb, ma or 1
+    end
+
     local chara = Game:getSoulPartyMember()
 
     if chara and chara:getSoulPriority() >= 0 then
@@ -631,14 +923,19 @@ function Game:getSoulColor()
     return 1, 0, 0, 1
 end
 
+---@return PartyMember?
 function Game:getActLeader()
     for _,party in ipairs(self.party) do
-        if party.has_act then
+        if party:hasAct() then
             return party
         end
     end
+
+    return nil
 end
 
+---@param chara  string|Follower
+---@param index? integer
 function Game:addFollower(chara, index)
     if isClass(chara) then
         chara = chara.actor.id
@@ -650,6 +947,7 @@ function Game:addFollower(chara, index)
     end
 end
 
+---@param chara string|Follower
 function Game:removeFollower(chara)
     if isClass(chara) then
         chara = chara.actor.id
@@ -667,7 +965,8 @@ function Game:removeFollower(chara)
     end
 end
 
-
+---@param amount number
+---@return number change
 function Game:giveTension(amount)
     local start = self:getTension()
     self:setTension(self:getTension() + amount)
@@ -678,12 +977,15 @@ function Game:giveTension(amount)
     return self:getTension() - start
 end
 
+---@param amount number
 function Game:setTensionPreview(amount)
     if Game.battle and Game.battle.tension_bar then
         Game.battle.tension_bar:setTensionPreview(amount)
     end
 end
 
+---@param amount number
+---@return number change
 function Game:removeTension(amount)
     local start = self:getTension()
     self:setTension(self:getTension() - amount)
@@ -694,18 +996,23 @@ function Game:removeTension(amount)
     return start - self:getTension()
 end
 
+---@param amount        number
+---@param dont_clamp?   boolean
 function Game:setTension(amount, dont_clamp)
     Game.tension = dont_clamp and amount or Utils.clamp(amount, 0, Game.max_tension)
 end
 
+---@return number
 function Game:getTension()
     return self.tension or 0
 end
 
+---@param amount number
 function Game:setMaxTension(amount)
     self.max_tension = amount
 end
 
+---@return number
 function Game:getMaxTension()
     return Game.max_tension or 100
 end
@@ -725,12 +1032,9 @@ function Game:update()
         for _,follower in ipairs(self.world.followers) do
             follower.visible = true
         end
-        if Kristal.getModOption("encounter") then
-            self:encounter(Kristal.getModOption("encounter"), self.world.player ~= nil)
-        end
     end
 
-    if Kristal.callEvent("preUpdate", DT) then
+    if Kristal.callEvent(KRISTAL_EVENT.preUpdate, DT) then
         return
     end
 
@@ -746,12 +1050,25 @@ function Game:update()
     self.playtime = self.playtime + DT
 
     self.stage:update()
+    
+    if not self.shop and not self.battle and not (self.world and self.world.map and self.world.map.id) then
+        if self.nothing_warn then Kristal.Console:warn("No map, shop nor encounter were loaded") end
+        if Kristal.getModOption("hardReset") then
+            love.event.quit("restart")
+        else
+            Kristal.returnToMenu()
+        end
+    else
+        self.nothing_warn = false
+    end
 
-    Kristal.callEvent("postUpdate", DT)
+    Kristal.callEvent(KRISTAL_EVENT.postUpdate, DT)
 end
 
+---@param key       string
+---@param is_repeat boolean
 function Game:onKeyPressed(key, is_repeat)
-    if Kristal.callEvent("onKeyPressed", key, is_repeat) then
+    if Kristal.callEvent(KRISTAL_EVENT.onKeyPressed, key, is_repeat) then
         -- Mod:onKeyPressed returned true, cancel default behaviour
         return
     end
@@ -780,14 +1097,21 @@ function Game:onKeyPressed(key, is_repeat)
     end
 end
 
+---@param key string
 function Game:onKeyReleased(key)
-    Kristal.callEvent("onKeyReleased", key)
+    Kristal.callEvent(KRISTAL_EVENT.onKeyReleased, key)
+end
+
+---@param x integer
+---@param y integer
+function Game:onWheelMoved(x, y)
+    Kristal.callEvent(KRISTAL_EVENT.onWheelMoved, x, y)
 end
 
 function Game:draw()
     love.graphics.clear(0, 0, 0, 1)
     love.graphics.push()
-    if Kristal.callEvent("preDraw") then
+    if Kristal.callEvent(KRISTAL_EVENT.preDraw) then
         love.graphics.pop()
         return
     end
@@ -796,7 +1120,7 @@ function Game:draw()
     self.stage:draw()
 
     love.graphics.push()
-    Kristal.callEvent("postDraw")
+    Kristal.callEvent(KRISTAL_EVENT.postDraw)
     love.graphics.pop()
 end
 

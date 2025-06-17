@@ -1,7 +1,9 @@
+---@class GonerChoice : Object
+---@overload fun(...) : GonerChoice
 local GonerChoice, super = Class(Object)
 
 function GonerChoice:init(x, y, choices, on_complete, on_select)
-    super:init(self, x, y)
+    super.init(self, x, y)
 
     self.choices = choices or {
         {{"YES",0,0},{"NO",80,0}}
@@ -27,7 +29,10 @@ function GonerChoice:init(x, y, choices, on_complete, on_select)
 
     self.soul = Sprite("player/heart_blur")
     self.soul:setScale(2, 2)
-    self.soul:setColor(1, 0, 0)
+    self.soul:setColor(Kristal.getSoulColor())
+	if Kristal.getState() ~= Game and MainMenu.mod_list:getSelectedMod().soulColor then
+		self.soul:setColor(unpack(MainMenu.mod_list:getSelectedMod().soulColor))
+	end
     self.soul.alpha = 0.6
     self.soul.inherit_color = true
     self:addChild(self.soul)
@@ -240,7 +245,7 @@ function GonerChoice:update()
         self.soul.y = self.soul.y + (dy * DTMULT)
     end
 
-    super:update(self)
+    super.update(self)
 end
 
 function GonerChoice:finish(callback)
@@ -353,7 +358,7 @@ function GonerChoice:moveSelection(x, y, dx, dy)
 end
 
 function GonerChoice:draw()
-    super:draw(self)
+    super.draw(self)
 
     love.graphics.setFont(self.font)
     for y, row in ipairs(self.choices) do
@@ -365,10 +370,10 @@ function GonerChoice:draw()
 
             if not self:isHidden(choice, x, y) then
                 if self.selected_x == x and self.selected_y == y then
-                    love.graphics.setColor(1, 1, 0, self.alpha)
+                    Draw.setColor(1, 1, 0, self.alpha)
                     love.graphics.print(text, tx, ty)
                 else
-                    love.graphics.setColor(1, 1, 1, self.alpha)
+                    Draw.setColor(1, 1, 1, self.alpha)
                     love.graphics.print(text, tx, ty)
                 end
             end

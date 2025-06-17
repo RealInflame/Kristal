@@ -1,7 +1,9 @@
+---@class MaskFX : FXBase
+---@overload fun(...) : MaskFX
 local MaskFX, super = Class(FXBase)
 
 function MaskFX:init(mask, draw_children, priority)
-    super:init(self, priority or 1000)
+    super.init(self, priority or 1000)
 
     self.mask = mask
     if draw_children ~= nil then
@@ -38,11 +40,11 @@ function MaskFX:draw(texture)
         end
     end
     Draw.popCanvas()
-    love.graphics.setColor(1, 1, 1)
+    Draw.setColor(1, 1, 1)
     love.graphics.stencil(function()
         local last_shader = love.graphics.getShader()
         love.graphics.setShader(Kristal.Shaders["Mask"])
-        love.graphics.draw(mask)
+        Draw.draw(mask)
         love.graphics.setShader(last_shader)
     end, "replace", 1)
     if not self.inverted then

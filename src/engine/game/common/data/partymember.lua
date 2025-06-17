@@ -1,3 +1,73 @@
+--- The PartyMember class is a type of data class that stores information about a member of the party. \
+--- PartyMembers are stored in `scripts/data/party`, and extend this class. Their filepath starting from here becomes their id, unless an id is specified as an argument to `Class()`.
+---@class PartyMember : Class
+---
+---@field name string
+---
+---@field actor                 Actor
+---@field lw_actor              Actor
+---@field dark_transition_actor Actor
+---
+---@field title string
+---@field level integer
+---
+---@field lw_lv integer
+---@field lw_xp number
+---
+---@field soul_priority integer
+---@field soul_color    table
+---
+---@field has_act       boolean
+---@field has_spells    boolean
+---
+---@field has_xact boolean
+---@field xact_name string
+---
+---@field spells Spell[]
+---
+---@field health    number
+---@field lw_health number
+---
+---@field stats {health: number, attack: number, defense: number, magic: number}
+---
+---@field max_stats {health: number, attack: number, defense: number, magic: number}
+---
+---@field lw_stats {health: number, attack: number, defense: number}
+---
+---@field weapon_icon string
+---
+---@field equipped {weapon: Item?, armor: Item[]}
+---
+---@field lw_weapon_default string
+---@field lw_armor_default  string
+---
+---@field color             table?
+---@field dmg_color         table?
+---@field attack_bar_color  table?
+---@field attack_box_color  table?
+---@field xact_color        table?
+---
+---@field menu_icon     string
+---@field head_icons    string
+---@field name_sprite   string?
+---
+---@field attack_sprite string
+---@field attack_sound  string
+---@field attack_pitch  number
+---
+---@field battle_offset     [number, number]?
+---@field head_icon_offset  [number, number]?
+---@field menu_icon_offset  [number, number]?
+---
+---@field gameover_message string[]?
+---
+---@field flags table<string, any>
+---
+---@field stat_buffs {attack: number, defense: number, health: number, magic: number, graze_time: number, graze_size: number, graze_tp: number}
+---
+---@field lw_xp_needed number[]
+---
+---@overload fun(...) : PartyMember
 local PartyMember = Class()
 
 function PartyMember:init()
@@ -8,6 +78,8 @@ function PartyMember:init()
     self.actor = nil
     -- Light World Actor (handles overworld/battle sprites in light world maps) (optional)
     self.lw_actor = nil
+    -- Dark Transition Actor (handles sprites during the dark world transition) (optional)
+    self.dark_transition_actor = nil
 
     -- Default title / class (saved to the save file)
     self.title = "Player"
@@ -24,8 +96,9 @@ function PartyMember:init()
     -- The color of this character's soul (optional, defaults to red)
     self.soul_color = {1, 0, 0}
 
-    -- Whether the party member can act / use spells
+    -- Whether the party member can act (defaults to true)
     self.has_act = true
+    -- Whether the party member can use spells (defaults to false)
     self.has_spells = false
 
     -- Whether the party member can use their X-Action
@@ -50,12 +123,15 @@ function PartyMember:init()
     }
     -- Max stats from level-ups
     self.max_stats = {}
+    
+    -- Party members which will also get stronger when this character gets stronger, even if they're not in the party
+    self.stronger_absent = {}
 
     -- Light world stats (saved to the save file)
     self.lw_stats = {
         health = 20,
         attack = 10,
-        defense = 0
+        defense = 10
     }
 
     -- Weapon icon in equip menu
@@ -67,8 +143,9 @@ function PartyMember:init()
         armor = {}
     }
 
-    -- Default light world equipment item IDs (saves current equipment)
+    -- Default light world weapon item ID (saves current weapon)
     self.lw_weapon_default = "light/pencil"
+    -- Default light world armor ID (saves current armor)
     self.lw_armor_default = "light/bandage"
 
     -- Character color (for action box outline and hp bar)
@@ -139,22 +216,53 @@ end
 
 -- Callbacks
 
+--- *(Override)* Called whenever this party member's attack hits an enemy in battle
+---@param enemy EnemyBattler
+---@param damage number
 function PartyMember:onAttackHit(enemy, damage) end
 
+--- *(Override)* Called whenever this party member's turn starts in battle
+---@param battler PartyBattler The party member's associated battler
 function PartyMember:onTurnStart(battler) end
+--- *(Override)* Called whenever this party member's action select turn starts
+---@param battler PartyBattler The party member's associated battler
+---@param undo    boolean      Whether their previous action was just undone
 function PartyMember:onActionSelect(battler, undo) end
 
+--- *(Override)* Called whenever this party member levels up
+---@param level integer The party member's new level
 function PartyMember:onLevelUp(level) end
 
+--- *(Override)* Called whenever the party member is hovered over in the Overworld Power menu
+---@param menu DarkPowerMenu The current menu instance
 function PartyMember:onPowerSelect(menu) end
+--- *(Override)* Called whenever the party member stops being hovered over in the Overworld Power menu
+---@param menu DarkPowerMenu The current menu instance
 function PartyMember:onPowerDeselect(menu) end
 
+--- *(Override)* Called every frame for each stat in the party member's Power menu.
+---@param index integer The index of the power stat
+---@param x number The x-coordinate of the text
+---@param y number The y-coordinate of the text
+---@param menu DarkPowerMenu The current menu instance
 function PartyMember:drawPowerStat(index, x, y, menu) end
 
+--- *(Override)* Called whenever the party member's data is saved
+---@param data PartyMemberSaveData
 function PartyMember:onSave(data) end
+--- *(Override)* Called whenever the party member's data is loaded
+---@param data PartyMemberSaveData
 function PartyMember:onLoad(data) end
 
+--- *(Override)* Called when the party member equips an item
+---@param item Item The item being equipped
+---@param item2? Item The item previously in its slot
+---@return boolean can_continue Whether the equip process will occur
 function PartyMember:onEquip(item, item2) return true end
+--- *(Override)* Called when the party member unequips an item
+---@param item Item The item being unequipped
+---@param item2? Item The item that will replace this item in its slot
+---@return boolean can_continue Whether the unequip process will occur
 function PartyMember:onUnequip(item, item2) return true end
 
 function PartyMember:onActionBox(box, overworld) end
@@ -181,6 +289,7 @@ function PartyMember:getXActName() return self.xact_name end
 function PartyMember:getWeaponIcon() return self.weapon_icon end
 
 function PartyMember:getHealth() return Game:isLight() and self.lw_health or self.health end
+---@param light? boolean
 function PartyMember:getBaseStats(light)
     if light or (light == nil and Game:isLight()) then
         return self.lw_stats
@@ -190,9 +299,18 @@ function PartyMember:getBaseStats(light)
 end
 
 function PartyMember:getMaxStats() return self.max_stats end
+---@param stat string
 function PartyMember:getMaxStat(stat)
     local max_stats = self:getMaxStats()
     return max_stats[stat]
+end
+
+function PartyMember:getStrongerAbsent() return self.stronger_absent end
+
+function PartyMember:getStatBuffs() return self.stat_buffs end
+---@param stat string
+function PartyMember:getStatBuff(stat)
+    return self:getStatBuffs()[stat] or 0
 end
 
 function PartyMember:getColor() return Utils.unpackColor(self.color) end
@@ -234,22 +352,34 @@ function PartyMember:getAttackSprite() return self.attack_sprite end
 function PartyMember:getAttackSound() return self.attack_sound end
 function PartyMember:getAttackPitch() return self.attack_pitch end
 
+---@return number x
+---@return number y
 function PartyMember:getBattleOffset() return unpack(self.battle_offset or {0, 0}) end
+---@return number x
+---@return number y
 function PartyMember:getHeadIconOffset() return unpack(self.head_icon_offset or {0, 0}) end
+---@return number x
+---@return number y
 function PartyMember:getMenuIconOffset() return unpack(self.menu_icon_offset or {0, 0}) end
 
 function PartyMember:getGameOverMessage() return self.gameover_message end
 
 -- Functions / Getters & Setters
 
+--- Heals this party member
+---@param amount        number
+---@param playsound?    boolean
+---@return boolean full_heal
 function PartyMember:heal(amount, playsound)
     if playsound == nil or playsound then
-        Assets.playSound("power")
+        Assets.stopAndPlaySound("power")
     end
     self:setHealth(math.min(self:getStat("health"), self:getHealth() + amount))
     return self:getStat("health") == self:getHealth()
 end
 
+--- Sets this party member's health value
+---@param health number
 function PartyMember:setHealth(health)
     if Game:isLight() then
         self.lw_health = health
@@ -258,6 +388,10 @@ function PartyMember:setHealth(health)
     end
 end
 
+--- Increases one of this party member's stats permanently
+---@param stat      string
+---@param amount    number
+---@param max?      number
 function PartyMember:increaseStat(stat, amount, max)
     local base_stats = self:getBaseStats()
     base_stats[stat] = (base_stats[stat] or 0) + amount
@@ -270,12 +404,51 @@ function PartyMember:increaseStat(stat, amount, max)
     end
 end
 
+--- Adds to one of this party member's current stat buffs
+---@param stat      string
+---@param amount    number
+---@param max?      number
+function PartyMember:addStatBuff(stat, amount, max)
+    local buffs = self:getStatBuffs()
+    buffs[stat] = (buffs[stat] or 0) + amount
+    if max and buffs[stat] > max then
+        buffs[stat] = max
+    end
+    self.stat_buffs = buffs
+end
+
+--- Sets one of this party member's stat buffs
+---@param stat      string
+---@param amount    number
+function PartyMember:setStatBuff(stat, amount)
+    self.stat_buffs[stat] = amount
+end
+
+--- Sets one of this party member's stat buffs back to nil
+---@param stat string
+function PartyMember:resetBuff(stat)
+    if self.stat_buffs[stat] then
+        self.stat_buffs[stat] = nil
+    end
+end
+
+--- Resets all of this party member's stat buffs
+function PartyMember:resetBuffs()
+    self.stat_buffs = {}
+end
+
+--- Gets this party member's reaction for using or seeing someone use a particular item \
+--- *By default, calls [`item:getReaction()`](lua://Item.getReaction) for reaction text*
+---@param item Item
+---@param user PartyMember
+---@return string?
 function PartyMember:getReaction(item, user)
     if item then
         return item:getReaction(user.id, self.id)
     end
 end
 
+---@param light? boolean
 function PartyMember:getActor(light)
     if light == nil then
         light = Game.light
@@ -287,6 +460,13 @@ function PartyMember:getActor(light)
     end
 end
 
+---@return Actor
+function PartyMember:getDarkTransitionActor()
+    return self.dark_transition_actor
+end
+
+--- Changes this party member's Dark World actor
+---@param actor string|Actor
 function PartyMember:setActor(actor)
     if type(actor) == "string" then
         actor = Registry.createActor(actor)
@@ -294,6 +474,8 @@ function PartyMember:setActor(actor)
     self.actor = actor
 end
 
+--- Changes this party member's Light World actor
+---@param actor string|Actor
 function PartyMember:setLightActor(actor)
     if type(actor) == "string" then
         actor = Registry.createActor(actor)
@@ -301,10 +483,21 @@ function PartyMember:setLightActor(actor)
     self.lw_actor = actor
 end
 
+--- Changes this party member's Dark Transition actor
+---@param actor string|Actor
+function PartyMember:setDarkTransitionActor(actor)
+    if type(actor) == "string" then
+        actor = Registry.createActor(actor)
+    end
+    self.dark_transition_actor = actor
+end
+
 function PartyMember:getSpells()
     return self.spells
 end
 
+--- Adds a spell to this party member's set of available spells
+---@param spell string|Spell
 function PartyMember:addSpell(spell)
     if type(spell) == "string" then
         spell = Registry.createSpell(spell)
@@ -312,6 +505,8 @@ function PartyMember:addSpell(spell)
     table.insert(self.spells, spell)
 end
 
+--- Removes a spell from this party member's available spells
+---@param spell string|Spell
 function PartyMember:removeSpell(spell)
     for i,v in ipairs(self.spells) do
         if v == spell or (type(spell) == "string" and v.id == spell) then
@@ -321,6 +516,9 @@ function PartyMember:removeSpell(spell)
     end
 end
 
+--- Checks whether this party member has the spell `spell`
+---@param spell string|Spell
+---@return boolean has_spell
 function PartyMember:hasSpell(spell)
     for i,v in ipairs(self.spells) do
         if v == spell or (type(spell) == "string" and v.id == spell) then
@@ -330,6 +528,23 @@ function PartyMember:hasSpell(spell)
     return false
 end
 
+--- Replaces one of this party member's spells with another \
+--- If `spell` is not in this party member's spell list, they will not learn `replacement`
+---@param spell string|Spell
+---@param replacement string
+function PartyMember:replaceSpell(spell, replacement)
+    local tempspells = {}
+    for _,v in ipairs(self.spells) do
+        if v == spell or (type(spell) == "string" and v.id == spell) then
+            table.insert(tempspells, Registry.createSpell(replacement))
+        else
+            table.insert(tempspells, v)
+        end
+    end
+    self.spells = tempspells
+end
+
+---@return Item[]
 function PartyMember:getEquipment()
     local result = {}
     if self.equipped.weapon then
@@ -347,10 +562,12 @@ function PartyMember:getWeapon()
     return self.equipped.weapon
 end
 
+---@param i integer
 function PartyMember:getArmor(i)
     return self.equipped.armor[i]
 end
 
+---@param item string|Item
 function PartyMember:setWeapon(item)
     if type(item) == "string" then
         item = Registry.createItem(item)
@@ -358,6 +575,8 @@ function PartyMember:setWeapon(item)
     self.equipped.weapon = item
 end
 
+---@param i     integer
+---@param item  string|Item
 function PartyMember:setArmor(i, item)
     if type(item) == "string" then
         item = Registry.createItem(item)
@@ -365,10 +584,17 @@ function PartyMember:setArmor(i, item)
     self.equipped.armor[i] = item
 end
 
+--- Checks whether this party member has the weapon with id `id` equipped
+---@param id string
+---@return boolean equipped
 function PartyMember:checkWeapon(id)
     return self:getWeapon() and self:getWeapon().id == id or false
 end
 
+--- Checks whether this party member has the armor with id `id` equipped
+---@param id string
+---@return boolean equipped
+---@return integer count
 function PartyMember:checkArmor(id)
     local result, count = false, 0
     for i = 1, 2 do
@@ -380,6 +606,12 @@ function PartyMember:checkArmor(id)
     return result, count
 end
 
+--- *(Override)* Checks whether this party member is able to equip a specific item \
+--- *By default, calls [`item:canEquip()`](lua://Item.canEquip) to check equippability, and rejects trying to unequip the item if the slot type is `"weapon"`*
+---@param item          Item|nil
+---@param slot_type     string
+---@param slot_index    integer
+---@return boolean
 function PartyMember:canEquip(item, slot_type, slot_index)
     if item then
         return item:canEquip(self, slot_type, slot_index)
@@ -388,6 +620,20 @@ function PartyMember:canEquip(item, slot_type, slot_index)
     end
 end
 
+function PartyMember:canAutoHeal()
+    return true
+end
+
+--- *(Override)* Gets the amount of health this party member should heal each turn whilst DOWN in battle
+---@return number
+function PartyMember:autoHealAmount()
+    -- TODO: Is this round or ceil? Both were used before this function was added.
+    return Utils.round(self:getStat("health") / 8)
+end
+
+--- Gets this party member's stat bonuses from equipment for a particular stat
+---@param stat string
+---@return number
 function PartyMember:getEquipmentBonus(stat)
     local total = 0
     for _,item in ipairs(self:getEquipment()) do
@@ -396,10 +642,11 @@ function PartyMember:getEquipmentBonus(stat)
     return total
 end
 
+---@param light? boolean
 function PartyMember:getStats(light)
     local stats = Utils.copy(self:getBaseStats(light))
     for _,item in ipairs(self:getEquipment()) do
-        for stat,amount in pairs(item:getStatBonuses()) do
+        for stat, amount in pairs(item:getStatBonuses()) do
             if stats[stat] then
                 stats[stat] = stats[stat] + amount
             else
@@ -410,10 +657,22 @@ function PartyMember:getStats(light)
     return stats
 end
 
+--- Gets the full (buffs applied) stat value for one of the party member's stats
+---@param name      string
+---@param default?  number
+---@param light?    boolean
 function PartyMember:getStat(name, default, light)
-    return (self:getBaseStats(light)[name] or (default or 0)) + self:getEquipmentBonus(name)
+    return (self:getBaseStats(light)[name] or (default or 0)) + self:getEquipmentBonus(name) + self:getStatBuff(name)
 end
 
+---@param name      string
+---@param default?  number
+---@param light?    boolean
+function PartyMember:getBaseStat(name, default, light)
+    return (self:getBaseStats(light)[name] or (default or 0))
+end
+
+--- Gets the value of the flag for this party member named `flag`, returning `default` if the flag does not exist
 function PartyMember:getFlag(name, default)
     local result = self.flags[name]
     if result == nil then
@@ -423,10 +682,17 @@ function PartyMember:getFlag(name, default)
     end
 end
 
+--- Sets the value of the flag for this party member named `flag` to `value`
+---@param flag  string
+---@param value any
 function PartyMember:setFlag(name, value)
     self.flags[name] = value
 end
 
+--- Adds `amount` to a numeric flag for this party member named `flag` (or defines it if it does not exist)
+---@param flag      string  The name of the flag to add to
+---@param amount?   number  (Defaults to `1`)
+---@return number new_value
 function PartyMember:addFlag(name, amount)
     self.flags[name] = (self.flags[name] or 0) + (amount or 1)
     return self.flags[name]
@@ -526,13 +792,29 @@ function PartyMember:saveEquipment()
     return result
 end
 
+---@param data table
 function PartyMember:loadEquipment(data)
-    if type(data.weapon) == "table" then
-        local weapon = Registry.createItem(data.weapon.id)
-        weapon:load(data.weapon)
-        self:setWeapon(weapon)
-    else
-        self:setWeapon(data.weapon)
+    self:setWeapon(nil)
+    if data.weapon then
+        if type(data.weapon) == "table" then
+            if Registry.getItem(data.weapon.id) then
+                local weapon = Registry.createItem(data.weapon.id)
+                if weapon then
+                    weapon:load(data.weapon)
+                    self:setWeapon(weapon)
+                else
+                    Kristal.Console:error("Could not load weapon \""..data.weapon.id.."\"")
+                end
+            else
+                Kristal.Console:error("Could not load weapon \"".. data.weapon.id .."\"")
+            end
+        else
+            if Registry.getItem(data.weapon) then
+                self:setWeapon(data.weapon)
+            else
+                Kristal.Console:error("Could not load weapon \"".. (data.weapon or "nil") .."\"")
+            end
+        end
     end
     for i = 1, 2 do
         self:setArmor(i, nil)
@@ -540,16 +822,29 @@ function PartyMember:loadEquipment(data)
     if data.armor then
         for k,v in pairs(data.armor) do
             if type(v) == "table" then
-                local armor = Registry.createItem(v.id)
-                armor:load(v)
-                self:setArmor(tonumber(k), armor)
+                if Registry.getItem(v.id) then
+                    local armor = Registry.createItem(v.id)
+                    if armor then
+                        armor:load(v)
+                        self:setArmor(tonumber(k), armor)
+                    else
+                        Kristal.Console:error("Could not load armor \""..v.id.."\"")
+                    end
+                else
+                    Kristal.Console:error("Could not load armor \""..v.id.."\"")
+                end
             else
-                self:setArmor(tonumber(k), v)
+                if Registry.getItem(v) then
+                    self:setArmor(tonumber(k), v)
+                else
+                    Kristal.Console:error("Could not load armor \"".. (v or "nil") .."\"")
+                end
             end
         end
     end
 end
 
+---@return string[] spells An array of the spell IDs this party member knows 
 function PartyMember:saveSpells()
     local result = {}
     for _,v in pairs(self.spells) do
@@ -558,13 +853,19 @@ function PartyMember:saveSpells()
     return result
 end
 
+---@param data string[] An array of the spell IDs this party member knows
 function PartyMember:loadSpells(data)
     self.spells = {}
     for _,v in ipairs(data) do
-        self:addSpell(v)
+        if Registry.getSpell(v) then
+            self:addSpell(v)
+        else
+            Kristal.Console:error("Could not load spell \"".. (v or "nil") .."\"")
+        end
     end
 end
 
+---@return PartyMemberSaveData
 function PartyMember:save()
     local data = {
         id = self.id,
@@ -584,6 +885,7 @@ function PartyMember:save()
     return data
 end
 
+---@param data PartyMemberSaveData
 function PartyMember:load(data)
     self.title = data.title or self.title
     self.level = data.level or self.level

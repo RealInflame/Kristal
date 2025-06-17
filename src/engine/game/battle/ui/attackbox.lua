@@ -1,12 +1,15 @@
+---@class AttackBox : Object
+---@overload fun(...) : AttackBox
 local AttackBox, super = Class(Object)
 
 AttackBox.BOLTSPEED = 8
 
-function AttackBox:init(battler, offset, x, y)
-    super:init(self, x, y)
+function AttackBox:init(battler, offset, index, x, y)
+    super.init(self, x, y)
 
     self.battler = battler
     self.offset = offset
+    self.index = index
 
     self.head_sprite = Sprite(battler.chara:getHeadIcons().."/head", 21, 19)
     self.head_sprite:setOrigin(0.5, 0.5)
@@ -22,7 +25,7 @@ function AttackBox:init(battler, offset, x, y)
     self.bolt.layer = 1
     self:addChild(self.bolt)
 
-    self.fade_rect = Rectangle(0, 0, SCREEN_WIDTH, 38)
+    self.fade_rect = Rectangle(0, 0, SCREEN_WIDTH, 300)
     self.fade_rect:setColor(0, 0, 0, 0)
     self.fade_rect.layer = 2
     self:addChild(self.fade_rect)
@@ -33,10 +36,11 @@ function AttackBox:init(battler, offset, x, y)
     self.flash = 0
 
     self.attacked = false
+    self.removing = false
 end
 
 function AttackBox:getClose()
-    return Utils.round((self.bolt.x - self.bolt_target) / AttackBox.BOLTSPEED)
+    return (self.bolt.x - self.bolt_target - 2) / AttackBox.BOLTSPEED
 end
 
 function AttackBox:hit()
@@ -49,15 +53,15 @@ function AttackBox:hit()
     self.bolt:setPosition(self.bolt:getRelativePos(0, 0, self.parent))
     self.bolt:setParent(self.parent)
 
-    if p == 0 then
+    if p <= 0.25 then
         self.bolt:setColor(1, 1, 0)
         self.bolt.burst_speed = 0.2
         return 450
     elseif p == 1 then
         return 120
-    elseif p == 2 then
+    elseif p <= 2.6 then
         return 110
-    elseif p >= 3 then
+    else
         self.bolt:setColor(self.battler.chara:getDamageColor())
         return 100 - (p * 2)
     end
@@ -68,9 +72,13 @@ function AttackBox:miss()
     self.attacked = true
 end
 
+function AttackBox:endAttack()
+    self.removing = true
+end
+
 function AttackBox:update()
-    if Game.battle.cancel_attack then
-        self.fade_rect.alpha = Utils.approach(self.fade_rect.alpha, 1, DTMULT/20)
+    if self.removing or Game.battle.cancel_attack then
+        self.fade_rect.alpha = Utils.approach(self.fade_rect.alpha, 1, 0.08 * DTMULT)
     end
 
     if not self.attacked then
@@ -79,7 +87,7 @@ function AttackBox:update()
         self.afterimage_timer = self.afterimage_timer + DTMULT/2
         while math.floor(self.afterimage_timer) > self.afterimage_count do
             self.afterimage_count = self.afterimage_count + 1
-            local afterimg = AttackBar(self.bolt_start_x - (self.afterimage_count * AttackBox.BOLTSPEED * 2), 0, 6, 38)
+            local afterimg = AttackBar(self.bolt.x, 0, 6, 38)
             afterimg.layer = 3
             afterimg.alpha = 0.4
             afterimg:fadeOutSpeedAndRemove()
@@ -93,7 +101,7 @@ function AttackBox:update()
         self.flash = Utils.approach(self.flash, 0, DTMULT/5)
     end
 
-    super:update(self)
+    super.update(self)
 end
 
 function AttackBox:draw()
@@ -107,14 +115,19 @@ function AttackBox:draw()
     love.graphics.setLineWidth(2)
     love.graphics.setLineStyle("rough")
 
-    love.graphics.setColor(box_color)
-    love.graphics.rectangle("line", 80, 1, (15 * AttackBox.BOLTSPEED) + 3, 36)
-    love.graphics.setColor(target_color)
+    local ch1_offset = Game:getConfig("oldUIPositions")
+
+    Draw.setColor(box_color)
+    love.graphics.rectangle("line", 80, ch1_offset and 0 or 1, (15 * AttackBox.BOLTSPEED) + 3, ch1_offset and 37 or 36)
+
+    Draw.setColor(target_color)
     love.graphics.rectangle("line", 83, 1, 8, 36)
+    Draw.setColor(0, 0, 0)
+    love.graphics.rectangle("fill", 84, 2, 6, 34)
 
     love.graphics.setLineWidth(1)
 
-    super:draw(self)
+    super.draw(self)
 end
 
 return AttackBox

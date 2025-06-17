@@ -1,7 +1,18 @@
+--- An Overworld region that sets a flag when the player steps into it. \
+--- `SetFlagEvent` is an [`Event`](lua://Event.init) - naming an object `setflag` on an `objects` layer in a map creates this object. \
+--- See this object's Fields for the configurable properties on this object.
+---@class SetFlagEvent : Event
+---
+---@field flag      string      *[Property `flag`]* The name of the flag to set a value on
+---@field value     any         *[Property `value`]* The value to set on the flag
+---@field once      boolean     *[Property `once`]* Whether the flag can only be set by this region once (Defaults to `false`)
+---@field map_flag  string      *[Property `mapflag`]* The name of the flag to set a value on, only affecting the current map
+---
+---@overload fun(...) : SetFlagEvent
 local SetFlagEvent, super = Class(Event, "setflag")
 
-function SetFlagEvent:init(x, y, width, height, properties)
-    super:init(self, x, y, width, height)
+function SetFlagEvent:init(x, y, shape, properties)
+    super.init(self, x, y, shape)
 
     properties = properties or {}
 
@@ -14,7 +25,7 @@ function SetFlagEvent:init(x, y, width, height, properties)
 end
 
 function SetFlagEvent:getDebugInfo()
-    local info = super:getDebugInfo(self)
+    local info = super.getDebugInfo(self)
     if self.flag     then table.insert(info, "Flag: "     .. self.flag)                         end
     if self.value    then table.insert(info, "Value: "    .. self.value)                        end
     if self.once     then table.insert(info, "Once: "     .. (self.once and "True" or "False")) end

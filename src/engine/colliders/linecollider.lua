@@ -1,7 +1,9 @@
+---@class LineCollider : Collider
+---@overload fun(...) : LineCollider
 local LineCollider, super = Class(Collider)
 
 function LineCollider:init(parent, x1, y1, x2, y2, mode)
-    super:init(self, parent, x1, y1, mode)
+    super.init(self, parent, x1, y1, mode)
 
     self.x2 = x2
     self.y2 = y2
@@ -44,7 +46,7 @@ function LineCollider:collidesWith(other, symmetrical)
         end
     end
 
-    return super:collidesWith(self, other)
+    return super.collidesWith(self, other)
 end
 
 function LineCollider:getShapeFor(other)
@@ -52,16 +54,16 @@ function LineCollider:getShapeFor(other)
 end
 
 function LineCollider:draw(r,g,b,a)
-    love.graphics.setColor(r,g,b,a)
+    Draw.setColor(r,g,b,a)
     love.graphics.setLineWidth(1)
     love.graphics.line(self.x, self.y, self.x2, self.y2)
-    love.graphics.setColor(1, 1, 1, 1)
+    Draw.setColor(1, 1, 1, 1)
 end
 function LineCollider:drawFill(r,g,b,a)
-    love.graphics.setColor(r,g,b,a)
+    Draw.setColor(r,g,b,a)
     love.graphics.setLineWidth(5)
     love.graphics.line(self.x, self.y, self.x2, self.y2)
-    love.graphics.setColor(1, 1, 1, 1)
+    Draw.setColor(1, 1, 1, 1)
 end
 
 return LineCollider

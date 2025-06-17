@@ -1,7 +1,7 @@
 local item, super = Class(Item, "light/egg")
 
 function item:init()
-    super:init(self)
+    super.init(self)
 
     -- Display name
     self.name = "Egg"
@@ -10,6 +10,9 @@ function item:init()
     self.type = "key"
     -- Whether this item is for the light world
     self.light = true
+
+    -- Item description text (unused by light items outside of debug menu)
+    self.description = "Not too important, not too unimportant."
 
     -- Light world check text
     self.check = "Not too important,[wait:5] not\ntoo unimportant."

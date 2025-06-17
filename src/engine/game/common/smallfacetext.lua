@@ -1,7 +1,9 @@
+---@class SmallFaceText : Object
+---@overload fun(...) : SmallFaceText
 local SmallFaceText, super = Class(Object)
 
 function SmallFaceText:init(text, x, y, face, actor)
-    super:init(self, x, y)
+    super.init(self, x, y)
 
     self.alpha = 0
 
@@ -27,7 +29,7 @@ function SmallFaceText:update()
     if self.text.x > 70 then
         self.text.x = Utils.approach(self.text.x, 70, 10*DTMULT)
     end
-    super:update(self)
+    super.update(self)
 end
 
 return SmallFaceText

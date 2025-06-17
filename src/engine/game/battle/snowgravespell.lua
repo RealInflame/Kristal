@@ -1,3 +1,8 @@
+--- A special object used for the Snowgrave spell. \
+--- Despite its name, this object is not the `Spell` used to trigger snowgrave - the snowgrave spell is instead a default spell in all mods under the id `snowgrave`. \
+--- The spell file that calls is is found from Kristal's root at `data/spells/snowgrave.lua` - see here for how this object is used. 
+---@class SnowGraveSpell : Object
+---@overload fun(user:PartyBattler) : SnowGraveSpell
 local SnowGraveSpell, super = Class(Object)
 
 function SnowGraveSpell:init(user, targets)
@@ -32,7 +37,7 @@ function SnowGraveSpell:init(user, targets)
 end
 
 function SnowGraveSpell:update()
-    super:update(self)
+    super.update(self)
     self.timer = self.timer + DTMULT
     self.since_last_snowflake = self.since_last_snowflake + DTMULT
 
@@ -51,7 +56,7 @@ function SnowGraveSpell:update()
 end
 
 function SnowGraveSpell:drawTiled(x, y, alpha)
-    love.graphics.setColor(1, 1, 1, alpha)
+    Draw.setColor(1, 1, 1, alpha)
 
     local width = (self.bg_snowfall:getWidth() * 2)
     local height = (self.bg_snowfall:getHeight() * 2)
@@ -61,7 +66,7 @@ function SnowGraveSpell:drawTiled(x, y, alpha)
 
     while cur_y + y < 480 do
         while cur_x + x < 640 do
-            love.graphics.draw(self.bg_snowfall, cur_x + x, cur_y + y, 0, 2, 2)
+            Draw.draw(self.bg_snowfall, cur_x + x, cur_y + y, 0, 2, 2)
             cur_x = cur_x + width
         end
         cur_x = -(width * math.ceil(x / width))
@@ -79,10 +84,10 @@ function SnowGraveSpell:createSnowflake(x, y)
 end
 
 function SnowGraveSpell:draw()
-    super:draw(self)
+    super.draw(self)
 
-    love.graphics.setColor(1, 1, 1, self.bgalpha)
-    love.graphics.draw(self.bg)
+    Draw.setColor(1, 1, 1, self.bgalpha)
+    Draw.draw(self.bg)
 
     self:drawTiled((self.snowspeed / 1.5), (self.timer * 6), self.bgalpha)
     self:drawTiled((self.snowspeed), (self.timer * 8), self.bgalpha * 2)

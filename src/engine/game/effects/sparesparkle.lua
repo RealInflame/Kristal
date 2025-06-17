@@ -1,7 +1,9 @@
+---@class SpareSparkle : Sprite
+---@overload fun(...) : SpareSparkle
 local SpareSparkle, super = Class(Sprite)
 
 function SpareSparkle:init(x, y)
-    super:init(self, "effects/spare/star", x, y)
+    super.init(self, "effects/spare/star", x, y)
 
     self:play(0.25, true)
 
@@ -21,7 +23,7 @@ end
 function SpareSparkle:update()
     self.rotation = self.rotation + math.rad(self.spin) * DTMULT
 
-    super:update(self)
+    super.update(self)
 end
 
 return SpareSparkle

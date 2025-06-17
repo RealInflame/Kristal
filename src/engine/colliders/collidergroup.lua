@@ -1,7 +1,9 @@
+---@class ColliderGroup : Collider
+---@overload fun(...) : ColliderGroup
 local ColliderGroup, super = Class(Collider)
 
 function ColliderGroup:init(parent, colliders, mode)
-    super:init(self, parent, 0, 0, mode)
+    super.init(self, parent, 0, 0, mode)
 
     self.colliders = colliders or {}
     for _,collider in ipairs(self.colliders) do
@@ -24,7 +26,7 @@ function ColliderGroup:collidesWith(other)
         end
     end
 
-    return super:collidesWith(self, other)
+    return super.collidesWith(self, other)
 end
 
 function ColliderGroup:drawFor(obj,r,g,b,a)

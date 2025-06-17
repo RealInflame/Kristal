@@ -1,7 +1,7 @@
 local item, super = Class(Item, "revivemint")
 
 function item:init()
-    super:init(self)
+    super.init(self)
 
     -- Display name
     self.name = "ReviveMint"
@@ -63,8 +63,8 @@ function item:onWorldUse(target)
 end
 
 function item:onBattleUse(user, target)
-    if target.chara.health <= 0 then
-        target:heal(math.abs(target.chara.health) + target.chara:getStat("health"))
+    if target.chara:getHealth() <= 0 then
+        target:heal(math.abs(target.chara:getHealth()) + target.chara:getStat("health"))
     else
         target:heal(math.ceil(target.chara:getStat("health") / 2))
     end

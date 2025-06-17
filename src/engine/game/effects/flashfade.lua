@@ -1,7 +1,9 @@
+---@class FlashFade : Sprite
+---@overload fun(...) : FlashFade
 local FlashFade, super = Class(Sprite)
 
 function FlashFade:init(texture, x, y)
-    super:init(self, texture, x, y)
+    super.init(self, texture, x, y)
 
     self.flash_speed = 1
     self.siner = 0
@@ -20,7 +22,7 @@ function FlashFade:update()
         self:remove()
     end
 
-    super:update(self)
+    super.update(self)
 end
 
 return FlashFade

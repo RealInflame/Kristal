@@ -1,7 +1,27 @@
+--- Creates an electric forcefield that the player cannot pass through until a condition is met. \
+--- `Forcefield` is an [`Event`](lua://Event.init) - naming an object `forcefield` on an `objects` layer in a map creates this object. \
+--- See this object's Fields for the configurable properties on this object.
+---@class Forcefield : Event
+---
+---@field end_sprite        love.Image[]
+---@field middle_sprite     love.Image[]
+---@field single_sprite     love.Image[]
+---
+---@field anim_speed        number  Speed of the forcefield animation, in seconds (Defaults to `3/30`)
+---@field anim_timer        number  Internal timer for the sprite animation
+---
+---@field solid             boolean *[Property `solid`]* Whether the forcefield is solid (Defaults to `true`)
+---@field always_visible    boolean *[Property `visible`]* Whether the forcefield is visible even when the player is not nearby (Defaults to `false`)
+---
+---@field flag              string  *[Property `flag`]* The name of the flag to check for whether this forcefield is active - if `!` is at the start of the flag, the check will be [`inverted`](lua://Forcefield.inverted)
+---@field inverted          boolean *[Property `inverted`]* Whether the flagcheck is inverted such that if `flag` is `flag_value`, the forcefield is inactive, and is active otherwise
+---@field flag_value        boolean *[Property `value`]* The value that `flag` should be for the forcefield to be active
+---
+---@overload fun(...) : Forcefield
 local Forcefield, super = Class(Event)
 
-function Forcefield:init(x, y, w, h, properties)
-    super:init(self, x, y, w, h)
+function Forcefield:init(x, y, shape, properties)
+    super.init(self, x, y, shape)
 
     self.end_sprite = Assets.getFramesOrTexture("world/events/forcefield/end")
     self.middle_sprite = Assets.getFramesOrTexture("world/events/forcefield/middle")
@@ -77,6 +97,8 @@ end
 
 function Forcefield:onInteract(player, dir)
     Game.world:showText("* (It appears to be some kind of forcefield.)")
+
+    return true
 end
 
 function Forcefield:update()
@@ -108,7 +130,7 @@ function Forcefield:update()
 
     self:updateActive()
 
-    super:update(self)
+    super.update(self)
 end
 
 function Forcefield:draw()
@@ -117,7 +139,7 @@ function Forcefield:draw()
 
     if self.dir == "none" then
         local sprite = self.single_sprite[(frame % #self.single_sprite) + 1]
-        love.graphics.draw(sprite, self.start_x, self.start_y, 0, 2, 2, sprite:getWidth()/2, sprite:getHeight()/2)
+        Draw.draw(sprite, self.start_x, self.start_y, 0, 2, 2, sprite:getWidth()/2, sprite:getHeight()/2)
     else
         local end_sprite = self.end_sprite[(frame % #self.end_sprite) + 1]
         local middle_sprite = self.middle_sprite[(frame % #self.middle_sprite) + 1]
@@ -138,14 +160,14 @@ function Forcefield:draw()
             elseif self.dir == "down" then
                 mid_y = self.start_y + 20 + (20 * mid_scale) + ((i - 1) * 40 * mid_scale)
             end
-            love.graphics.draw(middle_sprite, mid_x, mid_y, rot, sx, sy, middle_sprite:getWidth()/2, middle_sprite:getHeight()/2)
+            Draw.draw(middle_sprite, mid_x, mid_y, rot, sx, sy, middle_sprite:getWidth()/2, middle_sprite:getHeight()/2)
         end
 
-        love.graphics.draw(end_sprite, self.start_x, self.start_y, rot,                 2, 2, end_sprite:getWidth()/2, end_sprite:getHeight()/2)
-        love.graphics.draw(end_sprite, self.end_x,   self.end_y,   rot + math.rad(180), 2, 2, end_sprite:getWidth()/2, end_sprite:getHeight()/2)
+        Draw.draw(end_sprite, self.start_x, self.start_y, rot,                 2, 2, end_sprite:getWidth()/2, end_sprite:getHeight()/2)
+        Draw.draw(end_sprite, self.end_x,   self.end_y,   rot + math.rad(180), 2, 2, end_sprite:getWidth()/2, end_sprite:getHeight()/2)
     end
 
-    super:draw(self)
+    super.draw(self)
 end
 
 return Forcefield

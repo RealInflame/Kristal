@@ -1,7 +1,9 @@
+---@class OverworldActionBox : Object
+---@overload fun(...) : OverworldActionBox
 local OverworldActionBox, super = Class(Object)
 
 function OverworldActionBox:init(x, y, index, chara)
-    super:init(self, x, y)
+    super.init(self, x, y)
 
     self.index = index
     self.chara = chara
@@ -42,52 +44,62 @@ end
 
 function OverworldActionBox:update()
     self.reaction_alpha = self.reaction_alpha - DTMULT
-    super:update(self)
+    super.update(self)
 end
 
 function OverworldActionBox:draw()
     -- Draw the line at the top
     if self.selected then
-        love.graphics.setColor(self.chara:getColor())
+        Draw.setColor(self.chara:getColor())
     else
-        love.graphics.setColor(PALETTE["action_strip"])
+        Draw.setColor(PALETTE["action_strip"])
     end
 
     love.graphics.setLineWidth(2)
     love.graphics.line(0, 1, 213, 1)
-
-    -- Draw health
-    love.graphics.setColor(PALETTE["action_health_bg"])
-    love.graphics.rectangle("fill", 128, 24, 76, 9)
-
-    local health = (self.chara.health / self.chara:getStat("health")) * 76
-
-    if health > 0 then
-        love.graphics.setColor(self.chara:getColor())
-        love.graphics.rectangle("fill", 128, 24, health, 9)
+    
+    if Game:getConfig("oldUIPositions") then
+        love.graphics.line(0, 2, 2, 2)
+        love.graphics.line(211, 2, 213, 2)
     end
 
+    -- Draw health
+    Draw.setColor(PALETTE["action_health_bg"])
+    love.graphics.rectangle("fill", 128, 24, 76, 9)
+
+    local health = (self.chara:getHealth() / self.chara:getStat("health")) * 76
+
+    if health > 0 then
+        Draw.setColor(self.chara:getColor())
+        love.graphics.rectangle("fill", 128, 24, math.ceil(health), 9)
+    end
+
+    local color = PALETTE["action_health_text"]
     if health <= 0 then
-        love.graphics.setColor(PALETTE["action_health_text_down"])
-    elseif (self.chara.health <= (self.chara:getStat("health") / 4)) then
-        love.graphics.setColor(PALETTE["action_health_text_low"])
+        color = PALETTE["action_health_text_down"]
+    elseif (self.chara:getHealth() <= (self.chara:getStat("health") / 4)) then
+        color = PALETTE["action_health_text_low"]
     else
-        love.graphics.setColor(PALETTE["action_health_text"])
+        color = PALETTE["action_health_text"]
     end
 
     local health_offset = 0
-    health_offset = (#tostring(self.chara.health) - 1) * 8
+    health_offset = (#tostring(self.chara:getHealth()) - 1) * 8
 
+    Draw.setColor(color)
     love.graphics.setFont(self.font)
-    love.graphics.print(self.chara.health, 152 - health_offset, 11)
+    love.graphics.print(self.chara:getHealth(), 152 - health_offset, 11)
+    Draw.setColor(PALETTE["action_health_text"])
     love.graphics.print("/", 161, 11)
-    love.graphics.print(self.chara:getStat("health"), 181, 11)
+    local string_width = self.font:getWidth(tostring(self.chara:getStat("health")))
+    Draw.setColor(color)
+    love.graphics.print(self.chara:getStat("health"), 205 - string_width, 11)
 
     -- Draw name text if there's no sprite
     if not self.name_sprite then
         local font = Assets.getFont("name")
         love.graphics.setFont(font)
-        love.graphics.setColor(1, 1, 1, 1)
+        Draw.setColor(1, 1, 1, 1)
 
         local name = self.chara:getName():upper()
         local spacing = 5 - name:len()
@@ -107,10 +119,10 @@ function OverworldActionBox:draw()
     end
 
     love.graphics.setFont(self.main_font)
-    love.graphics.setColor(1, 1, 1, self.reaction_alpha / 6)
+    Draw.setColor(1, 1, 1, self.reaction_alpha / 6)
     love.graphics.print(self.reaction_text, reaction_x, 43, 0, 0.5, 0.5)
 
-    super:draw(self)
+    super.draw(self)
 end
 
 return OverworldActionBox

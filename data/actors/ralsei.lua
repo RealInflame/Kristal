@@ -1,7 +1,7 @@
 local actor, super = Class(Actor, "ralsei")
 
 function actor:init(style)
-    super:init(self)
+    super.init(self)
 
     local ralsei_style = style or Game:getConfig("ralseiStyle")
 
@@ -60,16 +60,54 @@ function actor:initChapter1()
 
         ["battle/act_end"]      = {"battle/actend", 1/15, false, next="battle/idle"},
 
-        --["battle/hurt"]         = {"battle/hurt", 1/15, false, temp=true, duration=0.5},
+        ["battle/hurt"]         = {"battle/hurt", 1/15, false, temp=true, duration=0.5},
         ["battle/defeat"]       = {"battle/defeat", 1/15, false},
 
         ["battle/transition"]   = {"walk/right_1", 1/15, false},
         ["battle/intro"]        = {"battle/intro", 1/15, false},
-        ["battle/victory"]      = {"battle/victory", 1/10, false}
+        ["battle/victory"]      = {"battle/victory", 1/10, false},
+
+        -- Cutscene animations
+        ["hood"]                = {"hood", 0.25, true},
+        ["pullhat"]             = {"pullhat", 0.25, true},
+        ["removehood"]          = {"removehood", 0.25, false, next="walk/down"},
+        ["reveal"]              = {"reveal", 0.3, false},
+        ["sing"]                = {"sing", 0.4, true},
+        ["sit"]                 = {"sit", 0.1, false},
+
+    }
+
+    -- Tables of sprites to change into in mirrors
+    self.mirror_sprites = {
+        ["walk/down"] = "walk/up",
+        ["walk/up"] = "walk/down",
+        ["walk/left"] = "walk/left",
+        ["walk/right"] = "walk/right",
+
+        ["walk_blush/down"] = "walk_blush/up",
+        ["walk_blush/up"] = "walk_blush/down",
+        ["walk_blush/left"] = "walk_blush/left",
+        ["walk_blush/right"] = "walk_blush/right",
+        
+        ["walk_unhappy/down"] = "walk_unhappy/up",
+        ["walk_unhappy/up"] = "walk_unhappy/down",
+        ["walk_unhappy/left"] = "walk_unhappy/left",
+        ["walk_unhappy/right"] = "walk_unhappy/right",
     }
 
     -- Table of sprite offsets (indexed by sprite name)
     self.offsets = {
+        -- Movement offsets
+        ["walk/down"] = {0, 0},
+        ["walk/left"] = {0, 0},
+        ["walk/right"] = {0, 0},
+        ["walk/up"] = {0, 0},
+
+        ["walk_blush/down"] = {0, 0},
+        ["walk_blush/left"] = {0, 0},
+        ["walk_blush/right"] = {0, 0},
+        ["walk_blush/up"] = {0, 0},
+
         -- Battle offsets
         ["battle/idle"] = {-7, -2},
 
@@ -85,10 +123,20 @@ function actor:initChapter1()
         ["battle/defend"] = {-3, -2},
 
         ["battle/defeat"] = {-3, -2},
-        --["battle/hurt"] = {-13, -2}, -- does this exist?
+        ["battle/hurt"] = {-13, -2}, -- does this exist? Bor's answer: yes, it does.
 
         ["battle/intro"] = {-3, -2},
-        ["battle/victory"] = {-3, -2}
+        ["battle/victory"] = {-3, -2},
+
+        -- Cutscene offsets
+        ["hood"] = {-2, -1},
+        ["pullhat"] = {-1, -2},
+        ["removehood"] = {-2, -1},
+        ["reveal"] = {-2, -2},
+        ["sing"] = {-10, -2},
+        ["sit"] = {0, 0},
+        ["shock"] = {-17, -4},
+        ["fallen"] = {-8, 20}
     }
 end
 
@@ -102,6 +150,10 @@ function actor:initChapter2()
 
     -- Hitbox for this actor in the overworld (optional, uses width and height by default)
     self.hitbox = {1, 28, 19, 14}
+    
+    -- A table that defines where the Soul should be placed on this actor if they are a player.
+    -- First value is x, second value is y.
+    self.soul_offset = {10.5, 24}
 
     -- Color for this actor used in outline areas (optional, defaults to red)
     self.color = {0, 1, 0}
@@ -161,6 +213,24 @@ function actor:initChapter2()
 
         ["wave_start"]          = {"wave_start", 5/30, false, next="wave_down"},
         ["wave_down"]           = {"wave_down", 5/30, true}
+    }
+
+    -- Tables of sprites to change into in mirrors
+    self.mirror_sprites = {
+        ["walk/down"] = "walk/up",
+        ["walk/up"] = "walk/down",
+        ["walk/left"] = "walk/left",
+        ["walk/right"] = "walk/right",
+
+        ["walk_unhappy/down"] = "walk_unhappy/up",
+        ["walk_unhappy/up"] = "walk_unhappy/down",
+        ["walk_unhappy/left"] = "walk_unhappy/left",
+        ["walk_unhappy/right"] = "walk_unhappy/right",
+        
+        ["walk_blush/down"] = "walk_blush/up",
+        ["walk_blush/up"] = "walk_blush/down",
+        ["walk_blush/left"] = "walk_blush/left",
+        ["walk_blush/right"] = "walk_blush/right",
     }
 
     -- Table of sprite offsets (indexed by sprite name)

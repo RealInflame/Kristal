@@ -1,9 +1,15 @@
+--- The sprite created around the soul whenever it grazes a bullet.
+---
+---@class GrazeSprite : Object
+---@overload fun(x?: number, y?: number) : GrazeSprite
 local GrazeSprite, super = Class(Object)
 
+---@param x? number
+---@param y? number
 function GrazeSprite:init(x, y)
     self.texture = Assets.getTexture("player/graze")
 
-    super:init(self, x, y, self.texture:getWidth(), self.texture:getHeight())
+    super.init(self, x, y, self.texture:getWidth(), self.texture:getHeight())
 
     self.graze_scale = 1
 
@@ -23,11 +29,11 @@ end
 function GrazeSprite:draw()
     local r,g,b,a = self:getDrawColor()
 
-    love.graphics.setColor(r/2, g/2, b/2, self.timer / 0.2)
-    love.graphics.draw(self.texture)
+    Draw.setColor(r/2, g/2, b/2, self.timer / 0.2)
+    Draw.draw(self.texture)
 
-    love.graphics.setColor(1, 1, 1, (self.timer / 0.2) - 0.2)
-    love.graphics.draw(self.texture)
+    Draw.setColor(1, 1, 1, (self.timer / 0.2) - 0.2)
+    Draw.draw(self.texture)
 
     if self.graze_scale ~= 1 then
         love.graphics.push()
@@ -36,16 +42,16 @@ function GrazeSprite:draw()
         love.graphics.scale(self.graze_scale, self.graze_scale)
         love.graphics.translate(-self.width/2, -self.height/2)
 
-        love.graphics.setColor(r/2, g/2, b/2, self.timer / 0.2)
-        love.graphics.draw(self.texture)
+        Draw.setColor(r/2, g/2, b/2, self.timer / 0.2)
+        Draw.draw(self.texture)
 
-        love.graphics.setColor(1, 1, 1, (self.timer / 0.2) - 0.2)
-        love.graphics.draw(self.texture)
+        Draw.setColor(1, 1, 1, (self.timer / 0.2) - 0.2)
+        Draw.draw(self.texture)
 
         love.graphics.pop()
     end
 
-    super:draw(self)
+    super.draw(self)
 end
 
 return GrazeSprite

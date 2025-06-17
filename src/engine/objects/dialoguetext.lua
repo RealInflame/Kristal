@@ -1,6 +1,9 @@
+---@class DialogueText : Text
+---@field actor? Actor 
+---@overload fun(...) : DialogueText
 local DialogueText, super = Class(Text)
 
-DialogueText.COMMANDS = {"voice", "noskip", "speed", "instant", "stopinstant", "wait", "func", "talk", "sound", "next"}
+DialogueText.COMMANDS = { "voice", "noskip", "speed", "instant", "stopinstant", "wait", "func", "talk", "sound", "next" }
 
 function DialogueText:init(text, x, y, w, h, options)
     if type(w) == "table" then
@@ -10,16 +13,16 @@ function DialogueText:init(text, x, y, w, h, options)
     options = options or {}
 
     options["font"] = options["font"] or "main_mono"
-    options["style"] = options["style"] or (Game:isLight() and "none" or "dark")
+    options["style"] = options["style"] or Kristal.callEvent(KRISTAL_EVENT.getDialogueTextStyle, text, options) or (Game:isLight() and "none" or "dark")
     options["line_offset"] = options["line_offset"] or 8
 
     self.custom_command_wait = {}
     if type(text) == "string" then
-        text = {text}
+        text = { text }
     end
     self.fast_skipping_timer = 0
     self.played_first_sound = false
-    super:init(self, text, x or 0, y or 0, w or SCREEN_WIDTH, h or SCREEN_HEIGHT, options)
+    super.init(self, text, x or 0, y or 0, w or SCREEN_WIDTH, h or SCREEN_HEIGHT, options)
     self.skippable = true
     self.skip_speed = false
     self.talk_sprite = nil
@@ -32,14 +35,20 @@ function DialogueText:init(text, x, y, w, h, options)
     self.advance_callback = nil
     self.line_callback = nil
     self.line_index = 1
+    self.actor = options["actor"]
 
     self.done = false
 
     self.should_advance = false
 end
 
+---@return Actor?
+function DialogueText:getActor()
+    if self.actor then return self.actor end
+end
+
 function DialogueText:getDebugInfo()
-    local info = super:getDebugInfo(self)
+    local info = super.getDebugInfo(self)
     table.insert(info, "Node count: " .. #self.nodes)
     table.insert(info, "Progress: " .. math.floor(self.state.progress))
     table.insert(info, "Current node: " .. self.state.current_node)
@@ -49,25 +58,25 @@ function DialogueText:getDebugInfo()
 end
 
 function DialogueText:resetState()
-    super:resetState(self)
+    super.resetState(self)
     self.state["typing_sound"] = "default"
 end
 
 function DialogueText:processInitialNodes()
-    self:drawToCanvas(function()
-        local i = 1
-        while i <= #self.nodes do
-            local current_node = self.nodes[i]
-            self:processNode(current_node, false)
-            self.state.current_node = self.state.current_node + 1
-            self.state.progress = self.state.typed_characters
-            i = i + 1
-            -- If the current mode is a typewriter...
-            if not self.state.skipping and not self:isNodeInstant(current_node) then
-                break
-            end
-        end
-    end, true)
+    self:drawToCanvas(function ()
+                          local i = 1
+                          while i <= #self.nodes do
+                              local current_node = self.nodes[i]
+                              self:processNode(current_node, false)
+                              self.state.current_node = self.state.current_node + 1
+                              self.state.progress = self.state.typed_characters
+                              i = i + 1
+                              -- If the current mode is a typewriter...
+                              if not self.state.skipping and not self:isNodeInstant(current_node) then
+                                  break
+                              end
+                          end
+                      end, true)
 end
 
 function DialogueText:setText(text, callback, line_callback)
@@ -89,7 +98,7 @@ function DialogueText:setText(text, callback, line_callback)
     end
 
     if type(text) == "string" then
-        text = {text}
+        text = { text }
     end
 
     self.text_table = text or {}
@@ -157,7 +166,8 @@ function DialogueText:update()
             self.fast_skipping_timer = 1
         end
 
-        local input = self.can_advance and (Input.pressed("confirm") or (Input.down("menu") and self.fast_skipping_timer >= 1))
+        local input = self.can_advance and
+            (Input.pressed("confirm") or (Input.down("menu") and self.fast_skipping_timer >= 1))
 
         if input or self.auto_advance or self.should_advance then
             self.should_advance = false
@@ -181,7 +191,6 @@ function DialogueText:update()
                 speed = speed * 2
             end
         end
-
     end
 
     if self.state.waiting == 0 then
@@ -191,7 +200,7 @@ function DialogueText:update()
     end
 
     if self.state.typing then
-        self:drawToCanvas(function()
+        self:drawToCanvas(function ()
             while (math.floor(self.state.progress) > self.state.typed_characters) or self.state.skipping do
                 local current_node = self.nodes[self.state.current_node]
 
@@ -214,7 +223,7 @@ function DialogueText:update()
 
     self:updateTalkSprite(self.state.talk_anim and self.state.typing)
 
-    super:update(self)
+    super.update(self)
 
     self.last_talking = self.state.talk_anim and self.state.typing
 end
@@ -256,7 +265,7 @@ function DialogueText:playTextSound(current_node)
         return
     end
 
-    local no_sound = {"\n", " ", "^", "!", ".", "?", ",", ":", "/", "\\", "|", "*"}
+    local no_sound = { "\n", " ", "^", "!", ".", "?", ",", ":", "/", "\\", "|", "*" }
 
     if (Utils.containsValue(no_sound, current_node.character)) then
         return
@@ -264,10 +273,15 @@ function DialogueText:playTextSound(current_node)
 
     if (self.state.typing_sound ~= nil) and (self.state.typing_sound ~= "") then
         self.played_first_sound = true
-        if Kristal.callEvent("onTextSound", self.state.typing_sound, current_node) then
+        if Kristal.callEvent(KRISTAL_EVENT.onTextSound, self.state.typing_sound, current_node, self.state) then
             return
         end
-        Assets.playSound("voice/"..self.state.typing_sound)
+        if self:getActor()
+            and (self:getActor():getVoice() or "default") == self.state.typing_sound
+            and self:getActor():onTextSound(current_node, self.state) then
+            return
+        end
+        Assets.playSound("voice/" .. self.state.typing_sound)
     end
 end
 
@@ -289,17 +303,17 @@ function DialogueText:isNodeInstant(node)
 end
 
 function DialogueText:isModifier(command)
-    return Utils.containsValue(DialogueText.COMMANDS, command) or super:isModifier(self, command)
+    return Utils.containsValue(DialogueText.COMMANDS, command) or super.isModifier(self, command)
 end
 
 function DialogueText:registerCommand(command, func, options)
     options = options or {}
-    super:registerCommand(self, command, func, options)
+    super.registerCommand(self, command, func, options)
     self.custom_command_wait[command] = options["instant"] ~= false
 end
 
 function DialogueText:processCustomCommand(node, dry)
-    local result = super:processCustomCommand(self, node, dry)
+    local result = super.processCustomCommand(self, node, dry)
     if self.custom_command_wait[node.command] then
         self.state.typed_characters = self.state.typed_characters + 1
     end
@@ -307,7 +321,7 @@ function DialogueText:processCustomCommand(node, dry)
 end
 
 function DialogueText:processModifier(node, dry)
-    super:processModifier(self, node, dry)
+    super.processModifier(self, node, dry)
 
     if node.command == "speed" then
         self.state.speed = tonumber(node.arguments[1])
@@ -327,13 +341,13 @@ function DialogueText:processModifier(node, dry)
     elseif node.command == "image" then
         self.state.typed_characters = self.state.typed_characters + 1
         if not dry then
-            self:playTextSound({character = "a", type="character"})
+            self:playTextSound({ character = "a", type = "character" })
         end
     elseif node.command == "voice" then
         if node.arguments[1] == "reset" then
             self.state.typing_sound = "default"
         elseif node.arguments[1] == "none" then
-                self.state.typing_sound = nil
+            self.state.typing_sound = nil
         else
             self.state.typing_sound = node.arguments[1]
         end
@@ -366,7 +380,7 @@ function DialogueText:processModifier(node, dry)
     elseif node.command == "button" then
         self.state.typed_characters = self.state.typed_characters + 1
         if not dry then
-            self:playTextSound({character = "a", type="character"})
+            self:playTextSound({ character = "a", type = "character" })
         end
     end
 end

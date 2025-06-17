@@ -1,3 +1,43 @@
+--- An extension of `Sprite` that can integrate with an actor.
+--- If an object defines an Actor, it will use this over `Sprite` for its sprite.
+--- 
+---@class ActorSprite : Sprite
+---
+---@field actor             Actor                               *(Read-only)* The actor associated with this sprite
+---@field sprite            string?                             *(Read-only)* The current texture of the sprite, if it exists
+---@field full_sprite       string?                             *(Read-only)* The full string path of the current texture, if it exists
+---@field anim              table|string|function?              *(Read-only)* The current animation set on the sprite
+---@field facing            "up"|"down"|"left"|"right"          *(Read-only)* The sprite's current facing direction
+---@field last_facing       "up"|"down"|"left"|"right"          *(Read-only)* The direction the sprite was facing on the previous frame
+---@field sprite_options    table                               *(Read-only)*
+---
+---@field temp_anim         table|string|function?              *(Read-only)* The animation that will be set when the current temporary animation stops
+---@field temp_sprite       string?                             *(Read-only)* The sprite that will be set when the current temporary animation stops 
+---
+---@field directional       boolean?                            *(Read-only)* Whether the current sprite changes based on the facing direction
+---@field dir_sep           string?                             *(Read-only)* The separator the current sprite uses for its directional sprites. Either `"_"` or `"/"`
+---
+---@field offsets           table<string, [number, number]>     *(Read-only)* A table of offset positions for sprites (inherited from [`Actor.offsets`](lua://Actor.offsets))
+---
+---@field walking           boolean                             Whether the sprite is currently walking
+---@field walk_speed        number                              The movement speed of the character attached to this sprite
+---@field walk_frame        number                              *(Read-only)* The current frame of the walking animation
+---@field walk_override     boolean                             *(Read-only)* Enables special update code for the walk animation
+---
+---@field aura              boolean                             Whether the sprite currently has a glowing aura (used for `ChaserEnemy` objects)
+---@field aura_siner        number                              A timer used for the aura effect
+---
+---@field run_away          boolean                             Special draw mode for enemies running away from battle on defeat
+---@field run_away_timer    number                              A timer used for the run away animation
+---
+---@field frozen            boolean                             Whether the sprite has a frozen overlay
+---@field freeze_progress   number                              The percentage of the enemy that is frozen, as a number ranging from 0 to 1
+---
+---@field on_footstep       fun(sprite: Sprite, cycle: number)? A callback function that is run whenever the character is in the "step" part of their animation while walking
+---
+---@field last_flippable    boolean                             
+---
+---@overload fun(actor: string|Actor) : ActorSprite
 local ActorSprite, super = Class(Sprite)
 
 function ActorSprite:init(actor)
@@ -19,17 +59,14 @@ function ActorSprite:init(actor)
     self.directional = false
     self.dir_sep = "_"
 
-    super:init(self, "", 0, 0, actor:getWidth(), actor:getHeight(), actor:getSpritePath())
+    super.init(self, nil, 0, 0, actor:getWidth(), actor:getHeight(), actor:getSpritePath())
 
     self.offsets = actor.offsets or {}
 
     self.walking = false
     self.walk_speed = 4
     self.walk_frame = 2
-
-    self.shake_x = 0
-    self.shake_y = 0
-    self.shake_timer = 0
+    self.walk_override = false
 
     self.aura = false
     self.aura_siner = 0
@@ -51,6 +88,8 @@ function ActorSprite:init(actor)
     self.last_flippable = actor:getFlipDirection(self)
 end
 
+--- Resets this sprite to the default animation or sprite.
+---@param ignore_actor_callback? boolean When set to `true`, will not call the actor's `preResetSprite()` function.
 function ActorSprite:resetSprite(ignore_actor_callback)
     if not ignore_actor_callback and self.actor:preResetSprite(self) then
         return
@@ -65,12 +104,17 @@ function ActorSprite:resetSprite(ignore_actor_callback)
     self.actor:onResetSprite(self)
 end
 
+--- *(Called internally)* Sets the current sprite to a single texture. \
+--- **Note**: *Only for internal overrides. Use `Sprite:setSprite()` instead.*
 function ActorSprite:setTextureExact(texture)
-    super:setTextureExact(self, texture)
+    super.setTextureExact(self, texture)
 
     self.sprite_options = self.actor:parseSpriteOptions(self.texture_path)
 end
 
+--- Sets or replaces the current actor on the sprite. \
+--- *Will also reset the sprite through [`ActorSprite:setSprite()`](lua://ActorSprite.setSprite)*
+---@param actor string|Actor
 function ActorSprite:setActor(actor)
     if type(actor) == "string" then
         actor = Registry.createActor(actor)
@@ -92,6 +136,11 @@ function ActorSprite:setActor(actor)
     self:resetSprite()
 end
 
+--- Sets the sprite relative to `assets/sprites`, with a custom offset.
+---@param texture?      string  The path to the sprite to use, relative to `assets/sprites`
+---@param ox?           number  The x-offset of the sprite
+---@param oy?           number  The y-offset of the sprite
+---@param keep_anim?    boolean
 function ActorSprite:setCustomSprite(texture, ox, oy, keep_anim)
     self.path = ""
     if ox and oy then
@@ -102,6 +151,12 @@ function ActorSprite:setCustomSprite(texture, ox, oy, keep_anim)
     self:_setSprite(texture, keep_anim)
 end
 
+--- Sets the sprite to either a texture or an animation \
+--- If the current actor has an animation with a name matching `name`, it will be passed into [`ActorSprite:setAnimation()`](lua://ActorSprite.setAnimation). \
+--- Otherwise, it will be passed into [`ActorSprite:setSprite()`](lua://ActorSprite.setSprite).
+---@param name                      string|nil
+---@param callback?                 fun(sprite: ActorSprite)
+---@param ignore_actor_callback?    boolean
 function ActorSprite:set(name, callback, ignore_actor_callback)
     if not ignore_actor_callback and self.actor:preSet(self, name, callback) then
         return
@@ -117,10 +172,15 @@ function ActorSprite:set(name, callback, ignore_actor_callback)
     self.actor:onSet(self, name, callback)
 end
 
+--- Sets the current sprite
+---@param texture?                  string
+---@param keep_anim?                boolean
+---@param ignore_actor_callback?    boolean
 function ActorSprite:setSprite(texture, keep_anim, ignore_actor_callback)
     if not ignore_actor_callback and self.actor:preSetSprite(self, texture, keep_anim) then
         return
     end
+    self.walk_override = false
     self.path = self.actor:getSpritePath()
     self.force_offset = nil
     self:_setSprite(texture, keep_anim)
@@ -128,7 +188,21 @@ function ActorSprite:setSprite(texture, keep_anim, ignore_actor_callback)
     self.actor:onSetSprite(self, texture, keep_anim)
 end
 
+--- *(Called internally)* Sets the current sprite
+---@param texture?      string
+---@param keep_anim?    boolean
 function ActorSprite:_setSprite(texture, keep_anim)
+    if not texture then
+        self.texture = nil
+        self.anim = nil
+        self.temp_anim = nil
+        self.temp_sprite = nil
+        self.sprite = nil
+        self.full_sprite = nil
+        self.directional = false
+        return
+    end
+
     if type(texture) ~= "string" then
         error("Texture must be a string")
     end
@@ -145,13 +219,23 @@ function ActorSprite:_setSprite(texture, keep_anim)
     self.directional, self.dir_sep = self:isDirectional(self.full_sprite)
 
     if self.directional then
-        super:setSprite(self, self:getDirectionalPath(self.sprite), keep_anim)
+        super.setSprite(self, self:getDirectionalPath(self.sprite), keep_anim)
     else
         self.walk_frame = 1
-        super:setSprite(self, self.sprite, keep_anim)
+        super.setSprite(self, self.sprite, keep_anim)
     end
 end
 
+--- Sets the animation of the current sprite. \
+--- The animation specified in `anim` can be one of the following:
+--- - `string` - The name of an animation defined on the sprite's current actor.
+--- - `table` - a table of animation data. Refer to [`Sprite:setAnimation(anim)`](lua://Sprite.setAnimation) for how to use this, as well as the additional keys supported on `ActorSprite` listed below:
+--- - - `temp: boolean` - Whether the previous aniamtion/sprite should be set once the new animation is stops (Defaults to `false`)
+--- - `function` - An animation routine
+---@param anim? table|string|function?
+---@param callback? fun(sprite: ActorSprite)    A callback to run when the animation finishes
+---@param ignore_actor_callback? boolean        Whether to skip calling [`Actor:preSetAnimation()`](lua://Actor.preSetAnimation)
+---@return boolean?
 function ActorSprite:setAnimation(anim, callback, ignore_actor_callback)
     if not ignore_actor_callback and self.actor:preSetAnimation(self, anim, callback) then
         return
@@ -188,7 +272,7 @@ function ActorSprite:setAnimation(anim, callback, ignore_actor_callback)
                 anim.callback = callback
             end
         end
-        super:setAnimation(self, anim)
+        super.setAnimation(self, anim)
         if not ignore_actor_callback then
             self.actor:onSetAnimation(self, anim, callback)
         end
@@ -203,6 +287,16 @@ function ActorSprite:setAnimation(anim, callback, ignore_actor_callback)
     end
 end
 
+--- Sets the current sprite and starts animating it based on [`walk_speed`](lua://ActorSprite.walk_speed) and [`walking`](lua://ActorSprite.walking)
+---@param texture string
+function ActorSprite:setWalkSprite(texture)
+    self:setSprite(texture)
+    self.walk_override = true
+end
+
+--- Whether this sprite can talk using it's current sprite
+---@return boolean can_talk     Whether a talksprite is defined
+---@return number talk_speed    The speed at which the talk sprite should animate, in seconds
 function ActorSprite:canTalk()
     for _,sprite in ipairs(self.sprite_options) do
         if self.actor:hasTalkSprite(sprite) then
@@ -212,22 +306,31 @@ function ActorSprite:canTalk()
     return false, 0.25
 end
 
+--- Sets the facing direction of the current sprite
+---@param facing "up"|"down"|"left"|"right"
 function ActorSprite:setFacing(facing)
     self.facing = facing
     self:updateDirection()
 end
 
+--- *(Called internally)* Updates the current sprite to match the current facing direction
 function ActorSprite:updateDirection()
     if self.directional and self.last_facing ~= self.facing then
-        super:setSprite(self, self:getDirectionalPath(self.sprite), true)
+        super.setSprite(self, self:getDirectionalPath(self.sprite), true)
     end
     self.last_facing = self.facing
 end
 
+--- Checks whether `sprite` matches the sprite's current texture
+---@param sprite string
+---@return boolean
 function ActorSprite:isSprite(sprite)
     return Utils.containsValue(self.sprite_options, sprite)
 end
 
+--- Selects from the given table `tbl` the relevant value for the current sprite, if it exists
+---@param tbl table
+---@return any
 function ActorSprite:getValueForSprite(tbl)
     for _,sprite in ipairs(self.sprite_options) do
         if tbl[sprite] then
@@ -236,6 +339,11 @@ function ActorSprite:getValueForSprite(tbl)
     end
 end
 
+--- *(Called internally)* Checks whether a particular `texture` has sprites defined for multiple facing directions \
+--- **Note:** Assumes that all four directions are always defined
+---@param texture string
+---@return boolean? directional
+---@return string? separator
 function ActorSprite:isDirectional(texture)
     if not Assets.getTexture(texture) and not Assets.getFrames(texture) then
         if Assets.getTexture(texture.."_left") or Assets.getFrames(texture.."_left") then
@@ -246,6 +354,9 @@ function ActorSprite:isDirectional(texture)
     end
 end
 
+--- *(Called internally)* Gets the path for a directional sprite based on the current facing direction
+---@param sprite string
+---@return string new_sprite
 function ActorSprite:getDirectionalPath(sprite)
     if sprite ~= "" then
         return sprite..self.dir_sep..self.facing
@@ -254,6 +365,7 @@ function ActorSprite:getDirectionalPath(sprite)
     end
 end
 
+---@return [number, number]
 function ActorSprite:getOffset()
     local offset = {0, 0}
     if self.force_offset then
@@ -271,11 +383,7 @@ function ActorSprite:getOffset()
             (self.directional and (self.offsets[self:getDirectionalPath(self.sprite)] or (frames_for_dir and self.offsets[frames_for_dir])))
             or {0, 0}]]
     end
-    if self.shake_x ~= 0 or self.shake_y ~= 0 then
-        return {offset[1] + math.ceil(self.shake_x), offset[2] + math.ceil(self.shake_y)}
-    else
-        return offset
-    end
+    return offset
 end
 
 function ActorSprite:update()
@@ -308,30 +416,18 @@ function ActorSprite:update()
 
     if not self.playing then
         local floored_frame = math.floor(self.walk_frame)
-        if floored_frame ~= self.walk_frame or (self.directional and self.walking) then
+        if floored_frame ~= self.walk_frame or ((self.directional or self.walk_override) and self.walking) then
             self.walk_frame = Utils.approach(self.walk_frame, floored_frame + 1, DT * (self.walk_speed > 0 and self.walk_speed or 1))
             local last_frame = self.frame
             self:setFrame(floored_frame)
             if self.frame ~= last_frame and self.on_footstep and self.frame % 2 == 0 then
                 self.on_footstep(self, math.floor(self.frame/2))
             end
-        elseif self.directional and self.frames and not self.walking then
+        elseif (self.directional or self.walk_override) and self.frames and not self.walking then
             self:setFrame(1)
         end
 
         self:updateDirection()
-    end
-
-    if self.shake_x ~= 0 or self.shake_y ~= 0 then
-        self.shake_timer = self.shake_timer + DTMULT
-
-        while self.shake_timer >= 2 do
-            self.shake_x = -Utils.approach(self.shake_x, 0, 1)
-            self.shake_y = -Utils.approach(self.shake_y, 0, 1)
-            self.shake_timer = self.shake_timer - 2
-        end
-    else
-        self.shake_timer = 0
     end
 
     if self.aura then
@@ -342,13 +438,14 @@ function ActorSprite:update()
         self.run_away_timer = self.run_away_timer + DTMULT
     end
 
-    super:update(self)
+    super.update(self)
 
     self.actor:onSpriteUpdate(self)
 end
 
+---@param transform love.Transform
 function ActorSprite:applyTransformTo(transform)
-    super:applyTransformTo(self, transform)
+    super.applyTransformTo(self, transform)
     local offset = self:getOffset()
     transform:translate(offset[1], offset[2])
 end
@@ -362,27 +459,60 @@ function ActorSprite:draw()
         local r,g,b,a = self:getDrawColor()
         for i = 0, 80 do
             local alph = a * 0.4
-            love.graphics.setColor(r,g,b, ((alph - (self.run_away_timer / 8)) + (i / 200)))
-            love.graphics.draw(self.texture, i * 2, 0)
+            Draw.setColor(r,g,b, ((alph - (self.run_away_timer / 8)) + (i / 200)))
+            Draw.draw(self.texture, i * 2, 0)
         end
         return
     end
 
     if self.texture and self.aura then
+        -- Use additive blending if the enemy is not being drawn to a canvas
+        if love.graphics.getCanvas() == SCREEN_CANVAS then
+            love.graphics.setBlendMode("add")
+        end
+
+        local sprite_width = self.texture:getWidth()
+        local sprite_height = self.texture:getHeight()
+
         for i = 1, 5 do
             local aura = (i * 9) + ((self.aura_siner * 3) % 9)
             local aurax = (aura * 0.75) + (math.sin(aura / 4) * 4)
             --var auray = (45 * scr_ease_in((aura / 45), 1))
             local auray = 45 * Ease.inSine(aura / 45, 0, 1, 1)
-            local aurayscale = math.min(1, 80 / self.texture:getHeight())
+            local aurayscale = math.min(1, 80 / sprite_height)
 
-            love.graphics.setColor(1, 0, 0, (1 - (auray / 45)) * 0.5)
-            love.graphics.draw(self.texture, -((aurax / 180) * self.texture:getWidth()), -((auray / 82) * self.texture:getHeight() * aurayscale), 0, 1 + ((aurax/36) * 0.5), 1 + (((auray / 36) * aurayscale) * 0.5))
+            Draw.setColor(1, 0, 0, (1 - (auray / 45)) * 0.5)
+            Draw.draw(self.texture, -((aurax / 180) * sprite_width), -((auray / 82) * sprite_height * aurayscale), 0, 1 + ((aurax/36) * 0.5), 1 + (((auray / 36) * aurayscale) * 0.5))
         end
-        love.graphics.setColor(self:getDrawColor())
+
+        love.graphics.setBlendMode("alpha")
+
+        local xmult = math.min((70 / sprite_width) * 4, 4)
+        local ymult = math.min((80 / sprite_height) * 5, 5)
+        local ysmult = math.min((80 / sprite_height) * 0.2, 0.2)
+
+        Draw.setColor(1, 0, 0, 0.2)
+        Draw.draw(self.texture, (sprite_width / 2) + (math.sin(self.aura_siner / 5) * xmult) / 2, (sprite_height / 2) + (math.cos(self.aura_siner / 5) * ymult) / 2, 0, 1, 1 + (math.sin(self.aura_siner / 5) * ysmult) / 2, sprite_width / 2, sprite_height / 2)
+        Draw.draw(self.texture, (sprite_width / 2) - (math.sin(self.aura_siner / 5) * xmult) / 2, (sprite_height / 2) - (math.cos(self.aura_siner / 5) * ymult) / 2, 0, 1, 1 - (math.sin(self.aura_siner / 5) * ysmult) / 2, sprite_width / 2, sprite_height / 2)
+
+        local last_shader = love.graphics.getShader()
+        love.graphics.setShader(Kristal.Shaders["AddColor"])
+
+        Kristal.Shaders["AddColor"]:send("inputcolor", {1, 0, 0})
+        Kristal.Shaders["AddColor"]:send("amount", 1)
+
+        Draw.setColor(1, 1, 1, 0.3)
+        Draw.draw(self.texture,  1,  0)
+        Draw.draw(self.texture, -1,  0)
+        Draw.draw(self.texture,  0,  1)
+        Draw.draw(self.texture,  0, -1)
+
+        love.graphics.setShader(last_shader)
+
+        Draw.setColor(self:getDrawColor())
     end
 
-    super:draw(self)
+    super.draw(self)
 
     if self.texture and self.frozen then
         if self.freeze_progress < 1 then
@@ -398,19 +528,19 @@ function ActorSprite:draw()
 
         local r,g,b,a = self:getDrawColor()
 
-        love.graphics.setColor(0, 0, 1, a * 0.8)
-        love.graphics.draw(self.texture, -1, -1)
-        love.graphics.setColor(0, 0, 1, a * 0.4)
-        love.graphics.draw(self.texture, 1, -1)
-        love.graphics.draw(self.texture, -1, 1)
-        love.graphics.setColor(0, 0, 1, a * 0.8)
-        love.graphics.draw(self.texture, 1, 1)
+        Draw.setColor(0, 0, 1, a * 0.8)
+        Draw.draw(self.texture, -1, -1)
+        Draw.setColor(0, 0, 1, a * 0.4)
+        Draw.draw(self.texture, 1, -1)
+        Draw.draw(self.texture, -1, 1)
+        Draw.setColor(0, 0, 1, a * 0.8)
+        Draw.draw(self.texture, 1, 1)
 
         love.graphics.setShader(last_shader)
 
         love.graphics.setBlendMode("add")
-        love.graphics.setColor(0.8, 0.8, 0.9, a * 0.4)
-        love.graphics.draw(self.texture)
+        Draw.setColor(0.8, 0.8, 0.9, a * 0.4)
+        Draw.draw(self.texture)
         love.graphics.setBlendMode("alpha")
 
         if self.freeze_progress < 1 then

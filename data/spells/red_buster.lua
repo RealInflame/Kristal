@@ -1,7 +1,7 @@
 local spell, super = Class(Spell, "red_buster")
 
 function spell:init()
-    super:init(self)
+    super.init(self)
 
     -- Display name
     self.name = "Red Buster"
@@ -9,7 +9,11 @@ function spell:init()
     self.cast_name = nil
 
     -- Battle description
-    self.effect = "Red\nDamage"
+    if Game.chapter <= 3 then
+        self.effect = "Red\nDamage"
+    else
+        self.effect = "Red\ndamage"
+    end
     -- Menu description
     self.description = "Deals large Red-elemental damage to\none foe. Depends on Attack & Magic."
 
@@ -45,9 +49,8 @@ function spell:onCast(user, target)
         local x, y = user:getRelativePos(user.width, user.height/2 - 10, Game.battle)
         local tx, ty = target:getRelativePos(target.width/2, target.height/2, Game.battle)
         local blast = RudeBusterBeam(true, x, y, tx, ty, function(pressed)
-            local damage = math.ceil((user.chara:getStat("magic") * 6) + (user.chara:getStat("attack") * 13) - (target.defense * 6)) + 90
+            local damage = self:getDamage(user, target, pressed)
             if pressed then
-                damage = damage + 30
                 Assets.playSound("scytheburst")
             end
             local flash = target:flash()
@@ -62,6 +65,14 @@ function spell:onCast(user, target)
         Game.battle:addChild(blast)
     end)
     return false
+end
+
+function spell:getDamage(user, target, pressed)
+    local damage = math.ceil((user.chara:getStat("magic") * 6) + (user.chara:getStat("attack") * 13) - (target.defense * 6)) + 90
+    if pressed then
+        damage = damage + 30
+    end
+    return damage
 end
 
 return spell

@@ -1,7 +1,9 @@
+---@class Explosion : Object
+---@overload fun(...) : Explosion
 local Explosion, super = Class(Object)
 
 function Explosion:init(x, y)
-    super:init(self, x, y)
+    super.init(self, x, y)
 
     self.frames = Assets.getFrames("misc/realistic_explosion")
     self.frame = 1
@@ -31,12 +33,12 @@ function Explosion:update()
         self:remove()
     end
 
-    super:update(self)
+    super.update(self)
 end
 
 function Explosion:draw()
-    love.graphics.draw(self.frames[self.frame])
-    super:draw(self)
+    Draw.draw(self.frames[self.frame])
+    super.draw(self)
 end
 
 return Explosion

@@ -1,7 +1,9 @@
+---@class DarkMenuPartySelect : Object
+---@overload fun(...) : DarkMenuPartySelect
 local DarkMenuPartySelect, super = Class(Object)
 
 function DarkMenuPartySelect:init(x, y)
-    super:init(self, x, y)
+    super.init(self, x, y)
 
     self.focused = false
 
@@ -10,6 +12,8 @@ function DarkMenuPartySelect:init(x, y)
     self.on_select = nil
 
     self.heart_siner = 0
+
+    self.highlight_party = true
 end
 
 function DarkMenuPartySelect:getSelected()
@@ -39,33 +43,35 @@ function DarkMenuPartySelect:update()
         end
     end
 
-    for i,action_box in pairs(Game.world.healthbar.action_boxes) do
-        if i == self.selected_party then
-            action_box.selected = true
-        else
-            action_box.selected = false
+    if self.highlight_party then
+        for i,action_box in pairs(Game.world.healthbar.action_boxes) do
+            if i == self.selected_party then
+                action_box.selected = true
+            else
+                action_box.selected = false
+            end
         end
     end
 
-    super:update(self)
+    super.update(self)
 end
 
 function DarkMenuPartySelect:draw()
     for i,party in ipairs(Game.party) do
         if self.selected_party ~= i then
-            love.graphics.setColor(1, 1, 1, 0.4)
+            Draw.setColor(1, 1, 1, 0.4)
         else
-            love.graphics.setColor(1, 1, 1, 1)
+            Draw.setColor(1, 1, 1, 1)
         end
         local ox, oy = party:getMenuIconOffset()
-        love.graphics.draw(Assets.getTexture(party:getMenuIcon()), (i-1)*50 + (ox*2), oy*2, 0, 2, 2)
+        Draw.draw(Assets.getTexture(party:getMenuIcon()), (i-1)*50 + (ox*2), oy*2, 0, 2, 2)
     end
     if self.focused then
         local frames = Assets.getFrames("player/heart_harrows")
-        love.graphics.setColor(Game:getSoulColor())
-        love.graphics.draw(frames[(math.floor(self.heart_siner/20)-1)%#frames+1], (self.selected_party-1)*50 + 10, -18)
+        Draw.setColor(Game:getSoulColor())
+        Draw.draw(frames[(math.floor(self.heart_siner/20)-1)%#frames+1], (self.selected_party-1)*50 + 10, -18)
     end
-    super:draw(self)
+    super.draw(self)
 end
 
 return DarkMenuPartySelect
